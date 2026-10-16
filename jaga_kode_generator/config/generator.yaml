@@ -1,0 +1,40 @@
+# ==============================================================================
+# JAGA-KODE Synthetic Generator Configuration
+# ==============================================================================
+
+generator:
+  schema_version: "1.0.0"
+  dataset_version: "SYNTH-2026.1"
+  n_samples: 10000
+  anomaly_ratio: 0.12
+  random_seed: 42
+  output_dir: "./data/synthetic"
+
+clusters:
+  katarak:
+    weight: 0.30
+    base_tariff: 6200000
+    los_mean: 1.5
+  sectio_caesarea:
+    weight: 0.30
+    base_tariff: 7800000
+    los_mean: 3.8
+  kardiovaskular:
+    weight: 0.20
+    base_tariff: 18500000
+    los_mean: 6.2
+  bedah_digestif:
+    weight: 0.20
+    base_tariff: 9500000
+    los_mean: 4.2
+
+anomalies:
+  ghost_comorbidity_share: 0.35
+  procedure_escalation_share: 0.25
+  los_inflation_share: 0.25
+  unbundling_share: 0.15
+
+quality:
+  strict_pii_check: true
+  export_format: "parquet"
+  compression: "snappy"

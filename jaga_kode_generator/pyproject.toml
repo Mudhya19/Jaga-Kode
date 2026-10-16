@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jaga-kode-synth"
+version = "0.1.0"
+description = "Synthetic Claim Dataset Generator for JKN INA-CBG Upcoding Guardrails"
+authors = [{ name = "Tim SI DANDANG", email = "muhammamddhiauddin40@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.4.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "pyyaml>=6.0.1",
+    "pyarrow>=13.0.0",
+]
+
+[project.scripts]
+jaga-kode-synth = "jaga_kode_synth.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
