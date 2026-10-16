@@ -1,0 +1,99 @@
+# ==============================================================================
+# .gitignore - JAGA-KODE AI Engineering & Data Science Project
+# ==============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# C extensions
+*.dll
+*.dylib
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook checkpoints & autosaves
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+*.sublime-project
+*.sublime-workspace
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Data protection (UU PDP No. 27/2022 Compliance)
+# Abaikan seluruh data riil, dump database, dan file mentah besar
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/synthetic/*
+!data/synthetic/.gitkeep
+*.csv
+*.tsv
+*.xlsx
+*.parquet
+*.feather
+*.h5
+*.sql
+*.dump
+
+# Model weights, serialized pipelines, & large checkpoints
+models/core/*
+!models/core/.gitkeep
+models/baselines/*
+!models/baselines/.gitkeep
+*.pkl
+*.pickle
+*.joblib
+*.bin
+*.pt
+*.pth
+*.onnx
+
+# Log files & runtime dumps
+logs/audit/*
+!logs/audit/.gitkeep
+logs/system/*
+!logs/system/.gitkeep
+*.log
+
+# Test & coverage outputs
+.coverage
+htmlcov/
+.pytest_cache/

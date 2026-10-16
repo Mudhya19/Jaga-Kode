@@ -1,0 +1,70 @@
+# ==============================================================================
+# JAGA-KODE: System Configuration Template (Blueprint)
+# ==============================================================================
+
+system:
+  project_name: "JAGA-KODE"
+  version: "0.1.0-prototype"
+  environment: "development"
+  log_level: "INFO"
+  random_seed: 42
+
+data:
+  raw_data_dir: "data/raw"
+  processed_data_dir: "data/processed"
+  synthetic_data_dir: "data/synthetic"
+  schemas_dir: "data/schemas"
+  synthetic_generation:
+    sample_size: 10000
+    anomaly_ratio: 0.12 # 12% anomali upcoding terkontrol
+    random_seed: 42
+
+guardrails:
+  enabled: true
+  rules_version: "2026.1"
+  strict_mode: false # True = langsung hard-fail ke prioritas tinggi
+  rule_weights:
+    gender_age_mismatch: 1.0 # Pelanggaran mutlak
+    procedure_diagnosis_conflict: 0.8
+    unbundling_violation: 0.7
+    unsupported_severity_elevation: 0.85
+
+anomaly_engine:
+  model_type: "isolation_forest"
+  hyperparameters:
+    n_estimators: 150
+    contamination: 0.10
+    max_samples: "auto"
+    random_state: 42
+  peer_grouping:
+    enabled: true
+    group_by:
+      - "faskes_class"
+      - "faskes_type"
+      - "region_code"
+    los_percentile_threshold: 95.0
+
+risk_fusion:
+  alpha_weight: 0.50 # Bobot S_rule (0.50) vs S_anomaly (0.50)
+  hard_fail_override: true # S_rule >= 1.0 otomatis Prioritas Tinggi
+  tiers:
+    high_threshold: 0.70
+    medium_threshold: 0.40
+
+xai:
+  top_contributing_features: 3
+  radar_dimensions:
+    - "diagnosis_procedure_coherence"
+    - "los_peer_deviation"
+    - "cost_severity_ratio"
+    - "comorbidity_complexity"
+    - "unbundling_index"
+
+api:
+  host: "127.0.0.1"
+  port: 8000
+  reload: true
+
+dashboard:
+  port: 8501
+  theme: "light"
