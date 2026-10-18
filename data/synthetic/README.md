@@ -30,7 +30,7 @@ Paket ini dirancang untuk menghasilkan dataset klaim sintetis berdaya uji tinggi
 
 ### 1. Instalasi Lingkungan Virtual
 ```powershell
-cd jaga_kode_generator
+cd data/synthetic
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -38,12 +38,12 @@ pip install -r requirements.txt
 
 ### 2. Eksekusi Generasi (10.000 Klaim, 12% Anomali)
 ```powershell
-python -m jaga_kode_synth --n-samples 10000 --anomaly-ratio 0.12 --random-seed 42 --output-dir ../data/synthetic
+python -m jaga_kode_synth --n-samples 10000 --anomaly-ratio 0.12 --random-seed 42 --output-dir .
 ```
 
 ### 3. Eksekusi Skala Besar (50.000 Klaim, 15% Anomali)
 ```powershell
-python -m jaga_kode_synth --n-samples 50000 --anomaly-ratio 0.15 --random-seed 42 --output-dir ../data/synthetic
+python -m jaga_kode_synth --n-samples 50000 --anomaly-ratio 0.15 --random-seed 42 --output-dir .
 ```
 
 ---

@@ -61,9 +61,12 @@ Thumbs.db
 data/raw/*
 !data/raw/.gitkeep
 data/processed/*
-!data/processed/.gitkeep
-data/synthetic/*
-!data/synthetic/.gitkeep
+# Generated synthetic data files
+data/synthetic/*.parquet
+data/synthetic/output/
+data/synthetic/generation_summary.json
+data/synthetic/manifest.yaml
+data/synthetic/synthetic_claim_schema.json
 *.csv
 *.tsv
 *.xlsx
