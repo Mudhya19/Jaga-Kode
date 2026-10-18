@@ -8,7 +8,7 @@ generator:
   n_samples: 10000
   anomaly_ratio: 0.12
   random_seed: 42
-  output_dir: "./data/synthetic"
+  output_dir: "auto"
 
 clusters:
   katarak:
@@ -36,5 +36,5 @@ anomalies:
 
 quality:
   strict_pii_check: true
-  export_format: "parquet"
+  export_format: "csv"
   compression: "snappy"

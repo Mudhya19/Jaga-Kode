@@ -10,6 +10,12 @@ import sys
 from pathlib import Path
 import yaml
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from .pipeline import SyntheticPipeline
 
 
@@ -38,8 +44,15 @@ def parse_args():
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="./data/synthetic",
-        help="Direktori penyimpanan berkas keluaran Parquet & JSON (default: ./data/synthetic)",
+        default="auto",
+        help="Direktori penyimpanan berkas keluaran (default: auto -> otomatis mengarah ke data/raw)",
+    )
+    parser.add_argument(
+        "--format",
+        type=str,
+        default="csv",
+        choices=["csv", "parquet", "both"],
+        help="Format berkas keluaran: csv, parquet, atau both (default: csv)",
     )
     parser.add_argument(
         "--config",
@@ -57,6 +70,7 @@ def main():
     anomaly_ratio = args.anomaly_ratio
     seed = args.random_seed
     output_dir = args.output_dir
+    export_format = args.format
 
     if args.config:
         cfg_path = Path(args.config)
@@ -68,14 +82,17 @@ def main():
                 anomaly_ratio = gen_cfg.get("anomaly_ratio", anomaly_ratio)
                 seed = gen_cfg.get("random_seed", seed)
                 output_dir = gen_cfg.get("output_dir", output_dir)
+                quality_cfg = cfg.get("quality", {})
+                export_format = quality_cfg.get("export_format", export_format)
         else:
-            print(f"⚠️ Berkas konfigurasi {args.config} tidak ditemukan. Menggunakan argumen CLI.")
+            print(f"[PERINGATAN] Berkas konfigurasi {args.config} tidak ditemukan. Menggunakan argumen CLI.")
 
     pipeline = SyntheticPipeline(
         n_samples=n_samples,
         anomaly_ratio=anomaly_ratio,
         seed=seed,
         output_dir=output_dir,
+        export_format=export_format,
     )
     pipeline.run()
 

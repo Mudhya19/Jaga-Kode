@@ -36,24 +36,29 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 2. Eksekusi Generasi (10.000 Klaim, 12% Anomali)
+### 2. Eksekusi Generasi Standar (Otomatis ke `data/raw` dalam format CSV)
 ```powershell
-python -m jaga_kode_synth --n-samples 10000 --anomaly-ratio 0.12 --random-seed 42 --output-dir .
+python -m jaga_kode_synth --n-samples 10000 --anomaly-ratio 0.12 --random-seed 42
 ```
+*Catatan: Secara default, generator otomatis mendeteksi dan mengarahkan keluaran langsung ke folder `data/raw/` dalam format `.csv`.*
 
-### 3. Eksekusi Skala Besar (50.000 Klaim, 15% Anomali)
+### 3. Opsi Format Ekspor Tambahan (`--format`)
 ```powershell
-python -m jaga_kode_synth --n-samples 50000 --anomaly-ratio 0.15 --random-seed 42 --output-dir .
+# Menghasilkan kedua format sekaligus (CSV dan Parquet) ke data/raw:
+python -m jaga_kode_synth --n-samples 10000 --format both
+
+# Menghasilkan 50.000 klaim (15% anomali):
+python -m jaga_kode_synth --n-samples 50000 --anomaly-ratio 0.15
 ```
 
 ---
 
-## 📂 Berkas Keluaran Pipeline
-Setelah generator selesai berjalan, folder target akan memuat:
+## 📂 Berkas Keluaran Pipeline (`data/raw/`)
+Setelah generator dijalankan, folder target `data/raw/` akan otomatis memuat:
 ```
-data/synthetic/
-├── claims_model_input.parquet     # Dataset klaim untuk model analitik AI
-├── claims_ground_truth.parquet    # Label rahasia evaluasi performa model
+data/raw/
+├── claims_model_input.csv         # Dataset klaim CSV untuk model analitik AI & verifikator
+├── claims_ground_truth.csv        # Label evaluasi performa model (kunci jawaban)
 ├── synthetic_claim_schema.json    # Skema validasi Pydantic v2
 ├── generation_summary.json        # Laporan ringkasan metrik statistik
 └── manifest.yaml                  # Metadata & verifikasi kepatuhan hukum

@@ -13,9 +13,16 @@ from datetime import datetime
 import json
 import os
 from pathlib import Path
+import sys
 from typing import Dict, Any, List
 import pandas as pd
 import yaml
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 from .schemas import (
     SyntheticClaim,
@@ -24,6 +31,38 @@ from .schemas import (
 )
 from .generator import SyntheticClaimGenerator
 from .quality import DataQualityGate
+
+
+def resolve_target_dir(output_dir: str | None = None) -> Path:
+    """
+    Menemukan direktori data/raw secara otomatis terlepas dari lokasi skrip dijalankan.
+    """
+    if output_dir and output_dir not in ("auto", "default", "data/raw", "./data/raw"):
+        p = Path(output_dir)
+        p.mkdir(parents=True, exist_ok=True)
+        return p.resolve()
+
+    current = Path.cwd().resolve()
+    # 1. Jika dijalankan dari root repositori
+    if (current / "data" / "raw").exists():
+        target = current / "data" / "raw"
+        target.mkdir(parents=True, exist_ok=True)
+        return target.resolve()
+    # 2. Jika dijalankan dari dalam data/synthetic
+    if current.name == "synthetic" and (current.parent / "raw").exists():
+        target = current.parent / "raw"
+        target.mkdir(parents=True, exist_ok=True)
+        return target.resolve()
+    # 3. Cari ke atas pada direktori induk
+    for parent in current.parents:
+        if (parent / "data" / "raw").exists():
+            target = parent / "data" / "raw"
+            target.mkdir(parents=True, exist_ok=True)
+            return target.resolve()
+
+    target = current / "data" / "raw"
+    target.mkdir(parents=True, exist_ok=True)
+    return target.resolve()
 
 
 class SyntheticPipeline:
@@ -36,12 +75,14 @@ class SyntheticPipeline:
         n_samples: int = 10000,
         anomaly_ratio: float = 0.12,
         seed: int = 42,
-        output_dir: str = "./data/synthetic",
+        output_dir: str = "auto",
+        export_format: str = "csv",
     ):
         self.n_samples = n_samples
         self.anomaly_ratio = anomaly_ratio
         self.seed = seed
-        self.output_dir = Path(output_dir)
+        self.output_dir = resolve_target_dir(output_dir)
+        self.export_format = export_format.lower()
         self.generator = SyntheticClaimGenerator(seed=seed)
         self.quality_gate = DataQualityGate()
 
@@ -114,25 +155,55 @@ class SyntheticPipeline:
         quality_report = self.quality_gate.run_all_gates(claims_list, gt_list)
 
         if not quality_report["gates_passed"]:
-            print("⚠️ PERINGATAN: Gerbang kualitas mendeteksi ketidaksesuaian:")
+            print("[PERINGATAN] Gerbang kualitas mendeteksi ketidaksesuaian:")
             print(json.dumps(quality_report["gate_details"], indent=2))
         else:
-            print("✅ 100% Quality Gates & Zero-PII Compliance LULUS.")
+            print("[OK] 100% Quality Gates & Zero-PII Compliance LULUS.")
 
-        # Konversi ke Pandas DataFrame untuk ekspor Parquet
-        print("[JAGA-KODE SYNTH] Mengekspor artefak ke format Parquet...")
+        # Konversi ke Pandas DataFrame untuk ekspor data
+        print(f"[JAGA-KODE SYNTH] Mengekspor artefak ke direktori: {self.output_dir} (Format: {self.export_format.upper()})...")
         claims_dicts = [c.model_dump() for c in claims_list]
         gt_dicts = [g.model_dump() for g in gt_list]
 
         df_claims = pd.DataFrame(claims_dicts)
         df_gt = pd.DataFrame(gt_dicts)
 
-        # Simpan file input model & ground truth terpisah
-        claims_parquet_path = self.output_dir / "claims_model_input.parquet"
-        gt_parquet_path = self.output_dir / "claims_ground_truth.parquet"
+        exported_files = {}
 
-        df_claims.to_parquet(claims_parquet_path, index=False, engine="pyarrow")
-        df_gt.to_parquet(gt_parquet_path, index=False, engine="pyarrow")
+        # 1. Ekspor CSV (Format Utama)
+        if self.export_format in ("csv", "both"):
+            df_claims_csv = df_claims.copy()
+            for col in ["secondary_diagnoses_icd10", "procedure_codes_icd9cm", "clinical_support_flags"]:
+                if col in df_claims_csv.columns:
+                    df_claims_csv[col] = df_claims_csv[col].apply(lambda x: json.dumps(x) if isinstance(x, list) else x)
+
+            df_gt_csv = df_gt.copy()
+            for col in ["changed_fields", "expected_rule_hits"]:
+                if col in df_gt_csv.columns:
+                    df_gt_csv[col] = df_gt_csv[col].apply(lambda x: json.dumps(x) if isinstance(x, list) else x)
+
+            claims_csv_path = self.output_dir / "claims_model_input.csv"
+            gt_csv_path = self.output_dir / "claims_ground_truth.csv"
+
+            df_claims_csv.to_csv(claims_csv_path, index=False, encoding="utf-8")
+            df_gt_csv.to_csv(gt_csv_path, index=False, encoding="utf-8")
+            exported_files["model_input_csv"] = str(claims_csv_path.name)
+            exported_files["ground_truth_csv"] = str(gt_csv_path.name)
+            print(f"[CSV] Berkas CSV berhasil diekspor:")
+            print(f"   - {claims_csv_path}")
+            print(f"   - {gt_csv_path}")
+
+        # 2. Ekspor Parquet
+        if self.export_format in ("parquet", "both"):
+            claims_parquet_path = self.output_dir / "claims_model_input.parquet"
+            gt_parquet_path = self.output_dir / "claims_ground_truth.parquet"
+            df_claims.to_parquet(claims_parquet_path, index=False, engine="pyarrow")
+            df_gt.to_parquet(gt_parquet_path, index=False, engine="pyarrow")
+            exported_files["model_input_parquet"] = str(claims_parquet_path.name)
+            exported_files["ground_truth_parquet"] = str(gt_parquet_path.name)
+            print(f"[PARQUET] Berkas Parquet berhasil diekspor:")
+            print(f"   - {claims_parquet_path}")
+            print(f"   - {gt_parquet_path}")
 
         # Simpan Schema JSON Pydantic
         schema_path = self.output_dir / "synthetic_claim_schema.json"
@@ -165,16 +236,14 @@ class SyntheticPipeline:
             json.dump(summary_data, f, indent=2)
 
         # Simpan Manifest YAML
+        exported_files["schema"] = str(schema_path.name)
+        exported_files["summary"] = str(summary_path.name)
+
         manifest_data = {
             "dataset_name": "JAGA-KODE-SYNTHETIC-CLAIMS",
             "version": "1.0.0",
             "schema_version": "1.0.0",
-            "files": {
-                "model_input": str(claims_parquet_path.name),
-                "ground_truth": str(gt_parquet_path.name),
-                "schema": str(schema_path.name),
-                "summary": str(summary_path.name),
-            },
+            "files": exported_files,
             "columns_count": len(df_claims.columns),
             "rows_count": len(df_claims),
             "compliance": {
@@ -189,12 +258,12 @@ class SyntheticPipeline:
             yaml.dump(manifest_data, f, default_flow_style=False)
 
         print("\n" + "=" * 65)
-        print("🎉 GENERASI DATASET SINTETIS JAGA-KODE BERHASIL DISELESAIKAN!")
+        print("[SELESAI] GENERASI DATASET SINTETIS JAGA-KODE BERHASIL!")
         print("=" * 65)
-        print(f"📁 Direktori Keluaran  : {self.output_dir.resolve()}")
-        print(f"📊 Total Baris Klaim   : {self.n_samples:,}")
-        print(f"🔴 Klaim Anomali       : {n_anomalies:,} ({self.anomaly_ratio*100:.1f}%)")
-        print(f"🟢 Klaim Normal        : {n_normals:,} ({(1-self.anomaly_ratio)*100:.1f}%)")
+        print(f"[OUTPUT] Direktori Keluaran  : {self.output_dir.resolve()}")
+        print(f"[STATUS] Total Baris Klaim   : {self.n_samples:,}")
+        print(f"[ANOMALI] Klaim Anomali      : {n_anomalies:,} ({self.anomaly_ratio*100:.1f}%)")
+        print(f"[NORMAL] Klaim Normal        : {n_normals:,} ({(1-self.anomaly_ratio)*100:.1f}%)")
         print("Distribusi Modus Anomali:")
         for mode, count in mode_counts.items():
             if mode != "NONE":
