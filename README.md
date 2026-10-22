@@ -6,6 +6,7 @@
 [![Category](https://img.shields.io/badge/Kategori-Efisiensi_Risiko_Fasilitas_Kesehatan-green.svg)]()
 [![Subcategory](https://img.shields.io/badge/Subkategori-Upcoding_Diagnosis_Tindakan-orange.svg)]()
 [![Team](https://img.shields.io/badge/Tim-SI_DANDANG-purple.svg)]()
+[![Hugging Face Model](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Datheory%2Fjaga--kode--dual--guardrail-yellow)](https://huggingface.co/Datheory/jaga-kode-dual-guardrail)
 
 ---
 
@@ -50,7 +51,7 @@ Jaga-Kode/
 │   └── system/                         # Log operasional aplikasi dan pipeline analitik
 ├── models/                             # Penyimpanan bobot, checkpoint, dan artefak model
 │   ├── baselines/                      # Model pembanding baseline (Logistic Regression, Random Forest)
-│   └── core/                           # Model utama (Isolation Forest, Scaler, Matriks Bobot Risk Fusion)
+│   └── core/                           # Model utama (Isolation Forest, Scaler, Matriks Bobot - di-host di Hugging Face)
 ├── notebooks/                          # Jupyter Notebooks untuk riset, EDA, dan eksperimentasi
 │   └── exploration/                    # Eksplorasi data sintetis, distribusi LoS, & profil faskes
 ├── reports/                            # Arsip laporan formal hasil evaluasi & publikasi
