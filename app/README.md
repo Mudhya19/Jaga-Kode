@@ -11,8 +11,8 @@ Direktori `app/` dirancang untuk antarmuka interaktif dan integrasi layanan infe
     * `POST /api/v1/claims/batch-evaluate`: Penilaian batch untuk ratusan klaim sekaligus.
     * `GET /api/v1/faskes/peer-stats`: Statistik agregat distribusi biaya dan LoS kelompok sejenis (*Peer Group*).
     * `POST /api/v1/audit/log`: Pencatatan jejak keputusan verifikator (*Human-in-the-Loop*).
-* **`app/dashboard/`**:
-  * Antarmuka kerja verifikator (*Verification Workspace*).
+* **`app/web/`**:
+  * Antarmuka kerja verifikator berbasis web (React + Vite + Tailwind + Recharts).
   * Komponen antarmuka yang direncanakan:
     * **Queue Panel**: Daftar antrean klaim terurut dari Prioritas Tinggi ke Rendah.
     * **Explanation Card Widget**: Tampilan radar visual kontribusi risiko dan penjelasan klinis dalam bahasa alami.

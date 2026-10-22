@@ -1,0 +1,195 @@
+# ==============================================================================
+# JAGA-KODE DATA PIPELINE CONFIGURATION & MAPPING SPECIFICATION (FASE 1)
+# Healthkathon BPJS Kesehatan 2026 - Track AI & Machine Learning
+# ==============================================================================
+
+pipeline_metadata:
+  pipeline_name: "jaga_kode_fkrtl_ingestion"
+  version: "1.0.0"
+  phase: "FASE_1_DATA_INVENTORY_AND_BASELINE"
+  created_at: "2026-10-22"
+  target_be_domain: "C03.04 (Klaim FKRTL)"
+  data_safety_standard: "UU No. 27 Tahun 2022 (PDP) - Zero-PII Standard"
+
+# ------------------------------------------------------------------------------
+# 1. DATA SOURCES & INGESTION ROLES
+# ------------------------------------------------------------------------------
+data_sources:
+  primary_claims:
+    file_name: "202403_fkrtl.dta"
+    relative_path: "data/references/Data sampel 2015-2024/2025/Data Sampel Reguler Edisi 2025/data/202403_fkrtl.dta"
+    status_category: "PRIMARY_CLAIM_SOURCE"
+    format: "Stata 118"
+    total_records: 1699219
+    total_columns: 57
+    primary_key: "FKL02"
+
+  secondary_diagnoses:
+    file_name: "202405_diagnosissekunder.dta"
+    relative_path: "data/references/Data sampel 2015-2024/2025/Data Sampel Reguler Edisi 2025/data/202405_diagnosissekunder.dta"
+    status_category: "SECONDARY_CLAIM_SOURCE"
+    format: "Stata 118"
+    total_records: 1967670
+    total_columns: 4
+    foreign_key: "FKL02"
+    diagnosis_code_col: "FKL24"
+    diagnosis_3digit_col: "FKL24A"
+
+  icd10_reference_dxprimer:
+    file_name: "icd10_info_dxprimer.dta"
+    relative_path: "data/references/Data sampel 2015-2024/2025/Data Sampel Reguler Edisi 2025/icd10/icd10_info_dxprimer.dta"
+    status_category: "SUPPORTING_REFERENCE"
+    format: "Stata 118"
+    join_key: "fkl17"
+    target_text_col: "diagprimer_3digit"
+
+  icd10_reference_dxsekunder:
+    file_name: "icd10_info_pnk.dta"
+    relative_path: "data/references/Data sampel 2015-2024/2025/Data Sampel Reguler Edisi 2025/icd10/icd10_info_pnk.dta"
+    status_category: "SUPPORTING_REFERENCE"
+    format: "Stata 118"
+    join_key: "fkl24"
+    target_text_col: "diagpnk_3digit"
+
+# ------------------------------------------------------------------------------
+# 2. PRIVACY & SANITIZATION POLICIES (ZERO-PII)
+# ------------------------------------------------------------------------------
+privacy_policies:
+  excluded_files:
+    - file_name: "2015202401_kepesertaan.dta"
+      reason: "Menghindari paparan demografi individu (PSTV01-PSTV18) demi kepatuhan Zero-PII UU PDP."
+    - file_name: "*_kepesertaan.dta"
+      reason: "Seluruh tabel kepesertaan kontekstual dikecualikan dari ingestion model."
+
+  dropped_columns:
+    - column: "PSTV01"
+      description: "Nomor peserta (dihapus saat ingestion ke memori analitik)"
+    - column: "PSTV02"
+      description: "Nomor keluarga (dihapus saat ingestion)"
+    - column: "PSTV15"
+      description: "Bobot statistik (100% kosong pada sampel FKRTL, dihapus)"
+
+  pseudonymized_identifiers:
+    - column: "FKL02"
+      hashing_required: true
+      hashing_algorithm: "HMAC-SHA256"
+      salt_env_var: "JAGA_KODE_CLAIM_SALT"
+
+# ------------------------------------------------------------------------------
+# 3. PEER GROUP FORMULATION
+# ------------------------------------------------------------------------------
+peer_group_engine:
+  formula: "peer_group_id = FKL07 + '_' + FKL08 + '_' + FKL09 + '_' + FKL31"
+  description: "Pengelompokan homogenitas faskes untuk evaluasi anomali berkeadilan (Fairness AI)"
+  components:
+    - field: "FKL07"
+      name: "kepemilikan_faskes"
+      data_type: "int8"
+      value_mapping:
+        1: "Vertikal (Kemenkes)"
+        2: "Pemerintah Provinsi"
+        3: "Pemerintah Kab/Kota"
+        4: "POLRI"
+        5: "TNI AD"
+        6: "TNI AL"
+        7: "TNI AU"
+        8: "BUMN"
+        9: "Swasta"
+    - field: "FKL08"
+      name: "jenis_faskes"
+      data_type: "int8"
+      value_mapping:
+        1: "Rumah Sakit"
+        2: "Klinik Utama"
+        3: "Klinik Pratama"
+    - field: "FKL09"
+      name: "tipe_kelas_rs"
+      data_type: "int8"
+      value_mapping:
+        1: "RS Kelas A"
+        2: "RS Kelas B"
+        3: "RS Kelas C"
+        4: "RS Kelas D"
+        5: "RS Kelas D Pratama"
+        6: "RS Swasta Setara Type A"
+        7: "RS Swasta Setara Type B"
+        8: "RS Swasta Setara Type C"
+        9: "RS Swasta Setara Type D"
+    - field: "FKL31"
+      name: "regional_tarif"
+      data_type: "int8"
+      value_mapping:
+        1: "Regional 1"
+        2: "Regional 2"
+        3: "Regional 3"
+        4: "Regional 4"
+        5: "Regional 5"
+
+# ------------------------------------------------------------------------------
+# 4. BASELINE COST METRICS (FKL47 & FKL48)
+# ------------------------------------------------------------------------------
+baseline_cost_engine:
+  source_columns:
+    claimed_cost: "FKL47"     # Biaya Tagih oleh provider (int32 / Rupiah)
+    verified_cost: "FKL48"    # Biaya Verifikasi disetujui BPJS (int32 / Rupiah)
+    currency: "IDR (Rupiah integer)"
+  
+  derived_metrics:
+    selisih_biaya:
+      formula: "FKL47 - FKL48"
+      interpretation: "Nilai nominal sengketa/dispute/koreksi koding oleh BPJS Kesehatan"
+      validity_condition: "FKL47 >= 0 and FKL48 >= 0"
+    
+    rasio_verifikasi:
+      formula: "FKL48 / FKL47"
+      interpretation: "Proporsi persetujuan klaim (1.0 = disetujui penuh, < 1.0 = pemotongan)"
+      handling_zero_div: "if FKL47 == 0 then null"
+      
+    is_claim_disputed:
+      formula: "FKL47 > FKL48"
+      interpretation: "Flag ground truth biner: klaim mengalami downcoding/koreksi verifikator"
+
+# ------------------------------------------------------------------------------
+# 5. FEATURE EXTRACTION SPECIFICATION
+# ------------------------------------------------------------------------------
+feature_engineering:
+  length_of_stay:
+    formula: "FKL04 - FKL03"
+    unit: "days"
+    interpretation: "Lama rawat inap. 0 hari = Rawat Jalan, >= 1 hari = Rawat Inap."
+  
+  severity_level:
+    source_column: "FKL23"
+    domain: [0, 1, 2, 3]
+    labels:
+      0: "Rawat Jalan"
+      1: "Tingkat Keparahan I (Ringan)"
+      2: "Tingkat Keparahan II (Sedang)"
+      3: "Tingkat Keparahan III (Berat)"
+  
+  secondary_diagnosis_aggregation:
+    source_table: "202405_diagnosissekunder.dta"
+    join_key: "FKL02"
+    aggregations:
+      - count_secondary_diagnoses: "count(FKL24)"
+      - secondary_diagnosis_codes: "list(FKL24)"
+      - secondary_diagnosis_3digit: "list(FKL24A)"
+
+  special_cmg_flags:
+    has_special_subacute: "FKL33 != 'NONE'"
+    has_special_procedure: "FKL35 != 'NONE'"
+    has_special_prosthesis: "FKL38 != 'NONE'"
+    has_special_investigation: "FKL41 != 'NONE'"
+    has_special_drugs: "FKL44 != 'NONE'"
+
+# ------------------------------------------------------------------------------
+# 6. INGESTION FILTERS & SPLITS
+# ------------------------------------------------------------------------------
+ingestion_filters:
+  upcoding_detection_focus:
+    criteria: "FKL10 == 2"  # Rawat Inap Tingkat Lanjut (RITL)
+    rationale: "Upcoding severity INA-CBG (Severity I -> II -> III) dan komorbiditas hantu terjadi pada kasus rawat inap."
+  
+  outpatient_monitoring_focus:
+    criteria: "FKL10 == 1"  # Rawat Jalan Tingkat Lanjut (RJTL)
+    rationale: "Pemantauan unbundling prosedur dan fragmentasi kunjungan."

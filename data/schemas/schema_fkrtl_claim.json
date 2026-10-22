@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BPJS_FKRTL_Claim_Schema",
+  "description": "JSON Schema kontrak data klaim FKRTL BPJS Kesehatan (Hasil Inventarisasi Fase 1 JAGA-KODE)",
+  "type": "object",
+  "required": [
+    "FKL02",
+    "FKL03",
+    "FKL04",
+    "FKL07",
+    "FKL08",
+    "FKL09",
+    "FKL10",
+    "FKL18",
+    "FKL19",
+    "FKL23",
+    "FKL31",
+    "FKL47",
+    "FKL48"
+  ],
+  "properties": {
+    "FKL02": {
+      "type": "string",
+      "pattern": "^[0-9]{8,10}V[0-9]{6}$",
+      "description": "ID Kunjungan FKRTL (Primary Key klaim)"
+    },
+    "FKL03": {
+      "type": "integer",
+      "description": "Tanggal datang kunjungan FKRTL (Stata date integer, elapsed days from 1960-01-01)"
+    },
+    "FKL04": {
+      "type": "integer",
+      "description": "Tanggal pulang kunjungan FKRTL (Stata date integer, elapsed days from 1960-01-01)"
+    },
+    "FKL05": {
+      "type": "integer",
+      "description": "Kode Provinsi FKRTL"
+    },
+    "FKL06": {
+      "type": "integer",
+      "description": "Kode Kabupaten/Kota FKRTL"
+    },
+    "FKL07": {
+      "type": "integer",
+      "enum": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "description": "Kepemilikan FKRTL (1=Vertikal, 2=PemProv, 3=PemKab, 4=POLRI, 5=TNI AD, 8=BUMN, 9=Swasta)"
+    },
+    "FKL08": {
+      "type": "integer",
+      "enum": [1, 2, 3],
+      "description": "Jenis FKRTL (1=Rumah Sakit, 2=Klinik Utama, 3=Klinik Pratama)"
+    },
+    "FKL09": {
+      "type": "integer",
+      "enum": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      "description": "Tipe/Kelas FKRTL (1=RS Kelas A, 2=RS Kelas B, 3=RS Kelas C, 4=RS Kelas D, 6-9=Swasta setara A-D)"
+    },
+    "FKL10": {
+      "type": "integer",
+      "enum": [1, 2],
+      "description": "Tingkat Pelayanan FKRTL (1=Rawat Jalan Tingkat Lanjut/RJTL, 2=Rawat Inap Tingkat Lanjut/RITL)"
+    },
+    "FKL11": {
+      "type": "integer",
+      "description": "Jenis Poli FKRTL"
+    },
+    "FKL12": {
+      "type": "integer",
+      "description": "Segmen Peserta saat akses layanan FKRTL"
+    },
+    "FKL13": {
+      "type": "integer",
+      "description": "Kelas rawat FKRTL (1=Kelas 1, 2=Kelas 2, 3=Kelas 3)"
+    },
+    "FKL14": {
+      "type": "integer",
+      "description": "Status pulang dari FKRTL (1=Sehat, 2=Rujuk, 3=Meninggal, 4=Pulang Paksa)"
+    },
+    "FKL15A": {
+      "type": "string",
+      "description": "Kode diagnosis masuk ICD-10 (3 digit)"
+    },
+    "FKL16": {
+      "type": "string",
+      "description": "Kode diagnosis masuk ICD-10 FKRTL (3-5 digit)"
+    },
+    "FKL17A": {
+      "type": "string",
+      "description": "Kode diagnosis primer ICD-10 (3 digit)"
+    },
+    "FKL18": {
+      "type": "string",
+      "description": "Kode diagnosis primer ICD-10 FKRTL (3-5 digit)"
+    },
+    "FKL19": {
+      "type": "string",
+      "pattern": "^[A-Z]-[0-9]-[0-9]{2}-[0-9I|II|III]+$",
+      "description": "Kode INA-CBG resmi (contoh: Q-5-44-0, I-4-10-I, P-8-17-III)"
+    },
+    "FKL20": {
+      "type": "integer",
+      "description": "Casemix Main Groups (Digit ke-1 INA-CBG)"
+    },
+    "FKL21": {
+      "type": "integer",
+      "description": "Tipe kelompok kasus / Case Groups (Digit ke-2 INA-CBG)"
+    },
+    "FKL22": {
+      "type": "integer",
+      "description": "Spesifikasi kelompok kasus (Digit ke-3 INA-CBG)"
+    },
+    "FKL23": {
+      "type": "integer",
+      "enum": [0, 1, 2, 3],
+      "description": "Tingkat keparahan kelompok kasus / Severity Level (Digit ke-4 INA-CBG: 0=RJTL, 1=Tingkat I, 2=Tingkat II, 3=Tingkat III)"
+    },
+    "FKL30": {
+      "type": ["string", "null"],
+      "description": "Jenis prosedur medis ICD-9-CM"
+    },
+    "FKL31": {
+      "type": "integer",
+      "enum": [1, 2, 3, 4, 5],
+      "description": "Tarif Regional INA-CBG (Regional 1 s.d Regional 5)"
+    },
+    "FKL32": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Tarif Group INA-CBG standar (Rupiah integer)"
+    },
+    "FKL47": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Biaya Tagih oleh fasilitas kesehatan / provider (Rupiah integer)"
+    },
+    "FKL48": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Biaya Verifikasi disetujui BPJS Kesehatan (Rupiah integer)"
+    }
+  }
+}

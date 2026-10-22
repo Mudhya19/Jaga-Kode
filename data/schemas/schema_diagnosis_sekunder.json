@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BPJS_FKRTL_Diagnosis_Sekunder_Schema",
+  "description": "JSON Schema kontrak data diagnosis sekunder FKRTL BPJS Kesehatan (Fase 1 JAGA-KODE)",
+  "type": "object",
+  "required": [
+    "FKL02",
+    "FKL24",
+    "FKL24A"
+  ],
+  "properties": {
+    "FKL02": {
+      "type": "string",
+      "description": "ID Kunjungan FKRTL (Foreign Key ke tabel klaim utama)"
+    },
+    "FKL24": {
+      "type": "string",
+      "description": "Kode diagnosis sekunder ICD-10 lengkap (3-5 digit, contoh: Z370, I10, E119)"
+    },
+    "FKL24A": {
+      "type": "string",
+      "description": "Kode diagnosis sekunder ICD-10 kategori 3 digit (contoh: Z37, I10, E11)"
+    },
+    "FKL24B": {
+      "type": ["string", "null"],
+      "description": "Deskripsi nama diagnosis sekunder ICD-10"
+    }
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "project": "JAGA-KODE",
+  "architecture": "Dual-Guardrail (Permenkes Clinical Rules + Peer-Group Isolation Forest)",
+  "empirical_population": {
+    "total_fkrtl_claims": 1699219,
+    "total_ritl_inpatient_claims": 195544,
+    "peer_group_cmg_cells": 4036,
+    "cooccurrence_cells": 3835,
+    "triage_distribution": {
+      "HIGH_RISK": {
+        "count": 538,
+        "percentage": 0.28,
+        "total_billed_billion_idr": 20.33
+      },
+      "MEDIUM_RISK": {
+        "count": 10530,
+        "percentage": 5.38,
+        "total_billed_billion_idr": 192.74
+      },
+      "LOW_RISK": {
+        "count": 184476,
+        "percentage": 94.34,
+        "total_billed_billion_idr": 822.1
+      }
+    }
+  },
+  "controlled_test_bench_metrics": {
+    "sample_size": 10000,
+    "anomaly_count": 1200,
+    "base_prevalence_pct": 12.0,
+    "roc_auc": 0.9911,
+    "pr_auc": 0.9339,
+    "precision_at_50_pct": 100.0,
+    "precision_at_100_pct": 100.0,
+    "precision_at_500_pct": 96.6,
+    "precision_top_1pct": 100.0,
+    "precision_top_5pct": 96.6,
+    "precision_top_10pct": 89.9,
+    "recall_top_5pct": 40.25,
+    "recall_top_10pct": 74.92,
+    "lift_top_5pct": 8.05,
+    "lift_top_10pct": 7.49,
+    "review_yield_high_risk_pct": 96.75,
+    "review_yield_med_high_pct": 69.8,
+    "false_positive_rate_high_pct": 0.284,
+    "recall_high_risk_pct": 62.08,
+    "peer_group_stability_index": 0.9161,
+    "model_name": "6. JAGA-KODE Dual Guardrail Fusion (Ours)"
+  },
+  "scenario_recall_breakdown": [
+    {
+      "skenario_upcoding": "SCN-01_GHOST_COMORBIDITY",
+      "jumlah_kasus_uji": 300,
+      "rata_rule_score": 85.7,
+      "rata_ml_score": 92.0,
+      "rata_risk_index": 88.5,
+      "tertangkap_high_risk_pct": 98.0,
+      "tertangkap_antrean_triage_pct": 100.0
+    },
+    {
+      "skenario_upcoding": "SCN-02_SEVERITY_ESCALATION",
+      "jumlah_kasus_uji": 300,
+      "rata_rule_score": 63.7,
+      "rata_ml_score": 80.2,
+      "rata_risk_index": 71.1,
+      "tertangkap_high_risk_pct": 73.33,
+      "tertangkap_antrean_triage_pct": 100.0
+    },
+    {
+      "skenario_upcoding": "SCN-03_SPECIAL_CMG_UNBUNDLING",
+      "jumlah_kasus_uji": 300,
+      "rata_rule_score": 35.4,
+      "rata_ml_score": 67.5,
+      "rata_risk_index": 49.8,
+      "tertangkap_high_risk_pct": 12.33,
+      "tertangkap_antrean_triage_pct": 100.0
+    },
+    {
+      "skenario_upcoding": "SCN-04_LOS_INFLATION",
+      "jumlah_kasus_uji": 300,
+      "rata_rule_score": 41.7,
+      "rata_ml_score": 93.5,
+      "rata_risk_index": 65.0,
+      "tertangkap_high_risk_pct": 64.67,
+      "tertangkap_antrean_triage_pct": 99.0
+    }
+  ]
+}

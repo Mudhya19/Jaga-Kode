@@ -1,0 +1,57 @@
+{
+  "peer_group_formula": "peer_group_id = FKL07 + '_' + FKL08 + '_' + FKL09 + '_' + FKL31",
+  "dimensions": {
+    "FKL07": {
+      "name": "Kepemilikan FKRTL",
+      "data_type": "int8",
+      "labels": {
+        "1": "Vertikal (Kemenkes)",
+        "2": "Pemerintah Provinsi",
+        "3": "Pemerintah Kab/Kota",
+        "4": "POLRI",
+        "5": "TNI AD",
+        "6": "TNI AL",
+        "7": "TNI AU",
+        "8": "BUMN",
+        "9": "Swasta"
+      }
+    },
+    "FKL08": {
+      "name": "Jenis FKRTL",
+      "data_type": "int8",
+      "labels": {
+        "1": "Rumah Sakit",
+        "2": "Klinik Utama",
+        "3": "Klinik Pratama"
+      }
+    },
+    "FKL09": {
+      "name": "Tipe/Kelas FKRTL",
+      "data_type": "int8",
+      "labels": {
+        "1": "RS Kelas A",
+        "2": "RS Kelas B",
+        "3": "RS Kelas C",
+        "4": "RS Kelas D",
+        "5": "RS Kelas D Pratama",
+        "6": "RS Swasta Setara Type A",
+        "7": "RS Swasta Setara Type B",
+        "8": "RS Swasta Setara Type C",
+        "9": "RS Swasta Setara Type D",
+        "10": "RS TNI POLRI Kelas I",
+        "11": "RS TNI POLRI Kelas II"
+      }
+    },
+    "FKL31": {
+      "name": "Tarif Regional INA-CBG",
+      "data_type": "int8",
+      "labels": {
+        "1": "Regional 1",
+        "2": "Regional 2",
+        "3": "Regional 3",
+        "4": "Regional 4",
+        "5": "Regional 5"
+      }
+    }
+  }
+}

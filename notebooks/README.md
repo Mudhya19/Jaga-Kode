@@ -1,17 +1,12 @@
-# Jupyter Notebooks Eksperimen & Analisis Data
+# Jupyter Notebooks Eksperimen & Pemodelan Data
 
-Direktori `notebooks/` digunakan untuk fase eksplorasi data (*Exploratory Data Analysis*), prototipe algoritma cepat, kalibrasi ambang batas, dan visualisasi hasil riset tim Data Science (Muhammad Dhiauddin).
+Direktori `notebooks/` digunakan untuk eksplorasi data klaim FKRTL BPJS Kesehatan, pemrofilan *Peer Group*, kalibrasi aturan klinis Permenkes No. 26/2021, pelatihan model deteksi anomali, serta evaluasi metrik sistem **JAGA-KODE**.
 
-## Rencana Urutan Notebook Riset:
+## Daftar Notebook Utama:
 
-1. **`01_exploratory_data_analysis.ipynb`**:
-   * Eksplorasi distribusi fitur data klaim sintetis.
-   * Analisis variansi *Length of Stay* (LoS) dan biaya per kelas faskes.
-2. **`02_guardrail_rule_prototyping.ipynb`**:
-   * Pengujian logika aturan klinis deterministik (*hard checks* dan relasi diagnosis-tindakan).
-3. **`03_anomaly_engine_experiments.ipynb`**:
-   * Eksperimen pelatihan *Isolation Forest*, tuning parameter contamination, dan evaluasi *Peer Grouping*.
-4. **`04_risk_fusion_and_xai_radar.ipynb`**:
-   * Kalibrasi pembobotan sinyal risiko ($\alpha$) dan visualisasi radar Explanation Card.
-5. **`05_benchmark_and_evaluation.ipynb`**:
-   * Pengujian metrik Precision@K, Review Yield, dan kurva PR-AUC pada skenario injeksi upcoding.
+1. **[`jaga_kode_dual_guardrail_modeling.ipynb`](jaga_kode_dual_guardrail_modeling.ipynb)**:
+   * Eksplorasi dan pemisahan populasi klaim Rawat Inap Tingkat Lanjut (RITL — 195.544 klaim) dari keseluruhan 1.699.219 klaim FKRTL.
+   * Pemrofilan statistik *Peer Group* lintas kelas rumah sakit, kepemilikan, regional tarif, dan kelompok *Casemix Main Group* (CMG) dengan *Empirical Bayes Shrinkage*.
+   * Evaluasi deterministik 5 aturan klinis Permenkes No. 26/2021 (*Consistency Guardrail*) murni dari sinyal pra-verifikasi.
+   * Pelatihan model *Peer-Group Isolation Forest* multivariat serta komparasi terhadap model *baseline* (*Univariate Z-Score* dan *Local Outlier Factor*).
+   * Fusi skor *Composite Priority Score* (CPS), *5-Axis Explainable Anomaly Radar* (XAI), serta pengujian *Controlled Upcoding Test Bench* (`SCN-01` s.d. `SCN-04`).

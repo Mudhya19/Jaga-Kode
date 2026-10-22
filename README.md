@@ -24,7 +24,7 @@ Repositori ini disusun mengikuti tata kelola standar industri Data Science & AI 
 Jaga-Kode/
 ├── app/                                # Prototipe aplikasi antarmuka & API verifikasi klaim
 │   ├── api/                            # Rencana modul backend API RESTful (FastAPI / Uvicorn)
-│   └── dashboard/                      # Rencana modul antarmuka Verification Workspace (Streamlit)
+│   └── web/                            # Antarmuka web verifikator (React + Vite + Tailwind CSS)
 ├── config/                             # Konfigurasi sistem, aturan klinis, & hyperparameter
 │   └── config.example.yaml             # Blueprint konfigurasi bobot aturan, ambang batas, & model
 ├── data/                               # Manajemen data klaim dan referensi INA-CBG
