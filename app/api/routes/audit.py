@@ -12,7 +12,7 @@ logger = logging.getLogger("jaga_kode.api.audit")
 
 router = APIRouter(prefix="/audit", tags=["Jejak Audit Human-in-the-Loop"])
 
-VALID_DECISIONS = ("APPROVED", "PENDING_VERIFICATION", "REJECTED_UPCODING")
+VALID_DECISIONS = ("APPROVED", "PENDING_VERIFICATION", "PENDING_CLARIFICATION", "REJECTED_UPCODING")
 
 
 @router.post("/action", response_model=AuditActionResponse, summary="Catat Keputusan Verifikator Manusia")

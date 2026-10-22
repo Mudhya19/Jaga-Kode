@@ -570,3 +570,50 @@ def test_faskes_peer_stats_docs_favicon_and_float_precision(monkeypatch):
     assert "HTTPBearer" in sec_schemes
 
 
+def test_frontend_integration_contract_and_priority_triage(tmp_path, monkeypatch):
+    """
+    Memastikan seluruh kontrak data yang dibutuhkan frontend React (app/web/) terpenuhi:
+    1. sample-claims terurut berdasarkan prioritas risiko (risk_index menurun) & memuat atribut FKL17A, FKL19, FKL32, FKL47, los, explanation_text.
+    2. batch-evaluate mengembalikan high_risk_billed_idr dan total_disputed_potential_idr.
+    3. audit/action mendukung keputusan PENDING_CLARIFICATION selain APPROVED dan REJECTED_UPCODING.
+    """
+    from app.api.dependencies import get_jaga_kode_service
+
+    resp_queue = client.get("/api/v1/claims/sample-claims?limit=25")
+    assert resp_queue.status_code == 200
+    queue = resp_queue.json()
+    assert len(queue) == 25
+    # Pastikan terurut dari risk_index tertinggi ke terendah
+    scores = [item["risk_index"] for item in queue]
+    assert scores == sorted(scores, reverse=True)
+    # Pastikan terdapat HIGH_RISK di puncak antrean dan atribut inspektor lengkap
+    assert queue[0]["risk_category"] == "HIGH_RISK"
+    assert queue[0]["FKL47"] is not None and queue[0]["FKL47"] > 0
+    assert queue[0]["FKL32"] is not None and queue[0]["FKL32"] > 0
+    assert queue[0]["FKL19"]
+    assert queue[0]["FKL17A"]
+    assert isinstance(queue[0]["explanation_text"], str) and len(queue[0]["explanation_text"]) > 0
+
+    # Uji kontrak batch-evaluate
+    presets = client.get("/api/v1/claims/preset-cases").json()
+    resp_batch = client.post("/api/v1/claims/batch-evaluate", json={"claims": list(presets.values())})
+    assert resp_batch.status_code == 200
+    batch_data = resp_batch.json()
+    assert batch_data["high_risk_billed_idr"] > 0
+    assert batch_data["total_disputed_potential_idr"] > 0
+
+    # Uji keputusan PENDING_CLARIFICATION pada audit trail terisolasi
+    svc = get_jaga_kode_service()
+    monkeypatch.setattr(svc.auditor, "audit_file", str(tmp_path / "frontend_audit.jsonl"))
+    resp_clar = client.post(
+        "/api/v1/audit/action",
+        json={
+            "claim_id": "CLM-DEMO-UNBUNDLING",
+            "decision": "PENDING_CLARIFICATION",
+            "verifier_id": "VERIF-BPJS-01",
+            "verifier_notes": "Mohon konfirmasi bukti tindakan Special CMG pada laporan operasi.",
+            "dispute_prevented_idr": 4500000.0,
+        },
+    )
+    assert resp_clar.status_code == 200
+    assert resp_clar.json()["success"] is True

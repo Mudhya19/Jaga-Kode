@@ -103,3 +103,8 @@ logs/system/*
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Frontend Web (Node / Vite)
+node_modules/
+.vite/
+*.tsbuildinfo

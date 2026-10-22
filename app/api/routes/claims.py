@@ -9,6 +9,7 @@ from typing import List, Optional
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from src.xai.radar import XAIRadarExplainer
 from app.api.dependencies import JagaKodeService, get_jaga_kode_service, BASE_DIR
 from app.api.schemas.claim_schema import SingleClaimInput, BatchClaimInput
 from app.api.schemas.response_schema import (
@@ -102,11 +103,21 @@ def evaluate_batch_claims(
         tot = len(results)
 
         total_billed = sum(c.FKL47 for c in batch.claims)
-        # Estimasi potensi dispute pada klaim risiko tinggi: selisih biaya tagih vs tarif standar INA-CBG
+        high_risk_billed = sum(
+            c.FKL47 for c, r in zip(batch.claims, results) if r.risk_category == "HIGH_RISK"
+        )
+        # Estimasi potensi dispute pada klaim non-Fast-Track (HIGH_RISK & MEDIUM_RISK):
+        # selisih biaya tagih vs tarif standar INA-CBG / median peer group
         disputed_est = sum(
-            max(0.0, c.FKL47 - (c.FKL32 if (c.FKL32 is not None and c.FKL32 > 0) else c.FKL47))
+            round(
+                max(
+                    0.0,
+                    c.FKL47 - (c.FKL32 if (c.FKL32 is not None and c.FKL32 > 0) else c.FKL47),
+                    (c.FKL47 - (c.FKL47 / r.cost_peer_ratio)) if r.cost_peer_ratio > 1.05 else 0.0,
+                )
+            )
             for c, r in zip(batch.claims, results)
-            if r.risk_category == "HIGH_RISK"
+            if r.risk_category != "LOW_RISK"
         )
 
         fast_track_pct = round((low_cnt / tot * 100.0) if tot > 0 else 0.0, 1)
@@ -116,8 +127,9 @@ def evaluate_batch_claims(
             high_risk_count=high_cnt,
             medium_risk_count=med_cnt,
             low_risk_count=low_cnt,
-            total_billed_idr=total_billed,
-            total_disputed_potential_idr=disputed_est,
+            total_billed_idr=round(total_billed, 2),
+            high_risk_billed_idr=round(high_risk_billed, 2),
+            total_disputed_potential_idr=round(disputed_est, 2),
             fast_track_percentage=fast_track_pct,
             results=results,
         )
@@ -155,7 +167,8 @@ def get_sample_claims(
 ):
     """
     Menyediakan daftar klaim riil teranalisis dari `data/processed/evaluated_claims_sample.csv`
-    untuk mengisi antrean awal (*Initial Triage Queue*) pada antarmuka frontend verifikator.
+    terurut dari risiko tertinggi ke terendah untuk mengisi antrean awal (*Initial Triage Queue*)
+    pada antarmuka frontend verifikator.
     """
     sample_csv_path = os.path.join(BASE_DIR, "data", "processed", "evaluated_claims_sample.csv")
     if not os.path.exists(sample_csv_path):
@@ -169,52 +182,88 @@ def get_sample_claims(
                 status_code=400,
                 detail=f"Kategori risiko tidak valid: '{category}'. Pilihan yang diizinkan: {sorted(VALID_RISK_CATEGORIES)}",
             )
-        df = df[df["risk_category"] == cat_filter]
+        df = df[df["risk_category"] == cat_filter].sort_values(by="risk_index", ascending=False)
+        df_slice = df.head(limit)
+    else:
+        # Untuk antrean triase gabungan, sajikan klaim HIGH_RISK di paling atas diikuti MEDIUM_RISK dan LOW_RISK
+        # agar verifikator melihat prioritas tertinggi sekaligus distribusi triase lengkap.
+        df_high = df[df["risk_category"] == "HIGH_RISK"].sort_values(by="risk_index", ascending=False)
+        df_med = df[df["risk_category"] == "MEDIUM_RISK"].sort_values(by="risk_index", ascending=False)
+        df_low_all = df[df["risk_category"] == "LOW_RISK"].sort_values(by="risk_index", ascending=False)
+        if "rule_violation_count" in df_low_all.columns:
+            df_low_clean = df_low_all[df_low_all["rule_violation_count"].astype(str).isin(["0", "0.0", ""])]
+            df_low = df_low_clean if len(df_low_clean) >= limit else df_low_all
+        else:
+            df_low = df_low_all
+        n_high = min(len(df_high), max(1, int(round(limit * 0.20))))
+        n_med = min(len(df_med), max(1, int(round(limit * 0.24))))
+        n_low = max(0, limit - n_high - n_med)
+        df_combined = pd.concat(
+            [df_high.head(n_high), df_med.head(n_med), df_low.head(n_low)],
+            ignore_index=True,
+        )
+        if len(df_combined) < limit:
+            remaining = df.loc[~df["FKL02"].isin(df_combined["FKL02"])].head(limit - len(df_combined))
+            df_combined = pd.concat([df_combined, remaining], ignore_index=True)
+        df_slice = df_combined.sort_values(by="risk_index", ascending=False).head(limit)
 
-    df_slice = df.head(limit)
     items = []
     for _, row in df_slice.iterrows():
+        row_dict = row.to_dict()
         cat = str(row.get("risk_category", "LOW_RISK"))
         badge = "#ef4444" if cat == "HIGH_RISK" else ("#f59e0b" if cat == "MEDIUM_RISK" else "#10b981")
 
         rule_viols = _parse_rule_violations(row.get("rule_violations", ""))
-        if rule_viols:
-            driver = ";".join(rule_viols)
-        elif cat != "LOW_RISK":
-            driver = "ANOMALI_MULTIVARIAT"
-        else:
-            driver = "PROFIL_KLAIM_WAJAR"
-
         cost_ratio = _safe_float(row.get("cost_peer_ratio"), default=1.0)
         los_z = _safe_float(row.get("los_peer_zscore"), default=0.0)
         sev = _safe_int(row.get("severity_level"), default=1)
         comorb_cnt = _safe_int(row.get("comorbidity_count"), default=0)
+        has_severe = _safe_int(row.get("has_severe_comorbidity"), default=0)
+        has_spec = _safe_int(row.get("has_special_cmg"), default=0)
         rule_score = _safe_float(row.get("rule_risk_score"), default=0.0)
         ml_score = _safe_float(row.get("ml_anomaly_score"), default=0.0)
         risk_idx = _safe_float(row.get("risk_index"), default=0.0)
+        fkl32_val = _safe_float(row.get("FKL32"), default=0.0)
+        fkl47_val = _safe_float(row.get("FKL47"), default=0.0)
+        los_val = _safe_int(row.get("los"), default=0)
+        plausibility_val = _safe_float(row.get("plausibility_score"), default=0.5)
+        unbundling_val = _safe_float(row.get("unbundling_index"), default=0.0)
 
-        # Skala 0-100 untuk radar
-        r_cost = min(100.0, max(0.0, (cost_ratio - 1.0) * 50.0 + 30.0)) if cost_ratio > 1.0 else max(10.0, cost_ratio * 30.0)
-        r_los = min(100.0, max(0.0, (los_z + 2.0) * 20.0))
-        r_comorb = min(100.0, max(0.0, comorb_cnt * 25.0))
-        r_sev = min(100.0, max(0.0, (sev / 3.0) * 100.0))
-        r_rule = min(100.0, max(0.0, rule_score))
+        fkl32_ref = fkl32_val if fkl32_val > 0 else fkl47_val
+        if has_spec == 1:
+            fkl33_val = max(0.0, fkl47_val - fkl32_ref) if fkl47_val > fkl32_ref else round(fkl47_val * 0.15, 2)
+        else:
+            fkl33_val = 0.0
 
+        xai = XAIRadarExplainer.explain_claim(
+            {
+                **row_dict,
+                "los": los_val,
+                "los_peer_zscore": los_z,
+                "cost_peer_ratio": cost_ratio,
+                "comorbidity_count": comorb_cnt,
+                "has_severe_comorbidity": has_severe,
+                "severity_level": sev,
+                "rule_risk_score": rule_score,
+                "unbundling_index": unbundling_val,
+                "plausibility_score": plausibility_val,
+                "rule_violations": ";".join(rule_viols),
+            }
+        )
+        radar_dict = dict(zip(xai["axes"], xai["values"]))
         radar = RadarDimensions(
-            los_deviation=round(float(r_los), 1),
-            cost_deviation=round(float(r_cost), 1),
-            comorbidity_intensity=round(float(r_comorb), 1),
-            severity_level=round(float(r_sev), 1),
-            regulatory_violation=round(float(r_rule), 1),
+            los_deviation=float(radar_dict.get("Deviasi Hari Rawat (LoS)", 0.0)),
+            cost_deviation=float(radar_dict.get("Deviasi Biaya (Peer Cost)", 0.0)),
+            comorbidity_intensity=float(radar_dict.get("Intensitas Komorbiditas", 0.0)),
+            severity_level=float(radar_dict.get("Tingkat Keparahan (Severity)", 0.0)),
+            regulatory_violation=float(radar_dict.get("Pelanggaran Regulasi Permenkes", 0.0)),
         )
 
-        narrative = [
-            f"Kategori Triase: {cat}",
-            f"Rasio Biaya Tagih vs Median Peer Group: {cost_ratio:.2f}x",
-            f"Deviasi LoS terhadap Peer Group (Z-Score): {los_z:.2f}",
-        ]
-        if rule_viols:
-            narrative.append(f"Pelanggaran Aturan: {', '.join(rule_viols)}")
+        driver = str(xai.get("primary_driver") or (";".join(rule_viols) if rule_viols else "PROFIL_KLAIM_WAJAR"))
+        narrative = list(xai.get("narrative", []))
+
+        sec_raw = str(row.get("secondary_diagnosis_codes", "")).strip()
+        sec_list = [s.strip() for s in sec_raw.split(";") if s.strip() and s.strip().lower() != "nan"]
 
         res = ClaimEvaluationResponse(
             claim_id=str(row.get("FKL02", "UNKNOWN")),
@@ -228,10 +277,33 @@ def get_sample_claims(
             rule_violations=rule_viols,
             radar=radar,
             clinical_narrative=narrative,
+            explanation_text=" ".join(narrative),
             cost_peer_ratio=round(cost_ratio, 2),
             los_peer_zscore=round(los_z, 2),
             comorbidity_count=comorb_cnt,
-            has_severe_comorbidity=_safe_int(row.get("has_severe_comorbidity"), default=0),
+            has_severe_comorbidity=has_severe,
+            FKL07=_safe_int(row.get("FKL07"), default=4),
+            FKL08=_safe_int(row.get("FKL08"), default=1),
+            FKL09=_safe_int(row.get("FKL09"), default=3),
+            FKL10=_safe_int(row.get("FKL10"), default=2),
+            FKL14=_safe_int(row.get("FKL14"), default=1),
+            FKL15A=str(row.get("FKL15A", "")),
+            FKL17A=str(row.get("FKL17A", "")),
+            FKL18=str(row.get("FKL18", "")),
+            FKL19=str(row.get("FKL19", "")),
+            FKL20=_safe_int(row.get("FKL20"), default=0),
+            FKL21=_safe_int(row.get("FKL21"), default=4),
+            FKL23=sev,
+            severity_level=sev,
+            FKL31=_safe_int(row.get("FKL31"), default=1),
+            FKL32=round(fkl32_ref, 2),
+            FKL33=round(fkl33_val, 2),
+            FKL47=round(fkl47_val, 2),
+            los=los_val,
+            peer_group_id=str(row.get("peer_group_id", "")),
+            secondary_diagnoses=sec_list,
+            plausibility_score=round(plausibility_val, 4),
+            unbundling_index=round(unbundling_val, 2),
         )
         items.append(res)
 

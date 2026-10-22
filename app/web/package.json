@@ -1,0 +1,27 @@
+{
+  "name": "jaga-kode-web",
+  "private": true,
+  "version": "2.0.0",
+  "description": "JAGA-KODE Verification Workspace — AI Guardrail & Smart Triage Klaim FKRTL BPJS Kesehatan (Healthkathon 2026 - Tim SI DANDANG)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.0.0",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.5"
+  }
+}

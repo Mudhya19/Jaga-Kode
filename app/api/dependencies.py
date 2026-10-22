@@ -201,6 +201,10 @@ class JagaKodeService:
             else:
                 viols = []
 
+            narr_list = list(xai.get("narrative", []))
+            sec_raw = str(row.get("secondary_diagnosis_codes", ""))
+            sec_list = [s.strip() for s in sec_raw.split(";") if s.strip()]
+
             res = ClaimEvaluationResponse(
                 claim_id=str(row["FKL02"]),
                 risk_index=round(float(row["risk_index"]), 1),
@@ -212,11 +216,34 @@ class JagaKodeService:
                 ml_anomaly_score=round(float(row.get("ml_anomaly_score", 0.0)), 2),
                 rule_violations=viols,
                 radar=radar_obj,
-                clinical_narrative=list(xai.get("narrative", [])),
+                clinical_narrative=narr_list,
+                explanation_text=" ".join(narr_list),
                 cost_peer_ratio=round(float(row.get("cost_peer_ratio", 1.0)), 2),
                 los_peer_zscore=round(float(row.get("los_peer_zscore", 0.0)), 2),
                 comorbidity_count=int(row.get("comorbidity_count", 0)),
                 has_severe_comorbidity=int(row.get("has_severe_comorbidity", 0)),
+                FKL07=int(row.get("FKL07", 4)),
+                FKL08=int(row.get("FKL08", 1)),
+                FKL09=int(row.get("FKL09", 3)),
+                FKL10=int(row.get("FKL10", 2)),
+                FKL14=int(row.get("FKL14", 1)),
+                FKL15A=str(row.get("FKL15A", "")),
+                FKL17A=str(row.get("FKL17A", "")),
+                FKL18=str(row.get("FKL18", "")),
+                FKL19=str(row.get("FKL19", "")),
+                FKL20=int(row.get("FKL20", 0)),
+                FKL21=int(row.get("FKL21", 4)),
+                FKL23=int(row.get("FKL23", 1)),
+                severity_level=int(row.get("severity_level", 1)),
+                FKL31=int(row.get("FKL31", 1)),
+                FKL32=round(float(row.get("FKL32", 0.0)), 2),
+                FKL33=round(float(row.get("FKL33", 0.0)), 2),
+                FKL47=round(float(row.get("FKL47", 0.0)), 2),
+                los=int(row.get("los", 0)),
+                peer_group_id=str(row.get("peer_group_id", "")),
+                secondary_diagnoses=sec_list,
+                plausibility_score=round(float(row.get("plausibility_score", 0.5)), 4),
+                unbundling_index=round(float(row.get("unbundling_index", 0.0)), 2),
             )
             results.append(res)
 
@@ -231,9 +258,9 @@ class JagaKodeService:
         """Mencatat keputusan verifikator ke log audit persisten."""
         event = self.auditor.record_audit_event(
             claim_id=req.claim_id,
-            risk_index=0.0,
-            risk_category="VERIFIED",
-            primary_driver="HUMAN_IN_THE_LOOP_DECISION",
+            risk_index=float(req.risk_index if req.risk_index is not None else 0.0),
+            risk_category=str(req.risk_category or "VERIFIED"),
+            primary_driver=str(req.primary_driver or "HUMAN_IN_THE_LOOP_DECISION"),
             recommended_action=req.decision,
             verifier_decision=req.decision,
             verifier_id=req.verifier_id,
@@ -306,9 +333,9 @@ class JagaKodeService:
                 FKL07=2, FKL08=1, FKL09=2, FKL10=2, FKL14=1,
                 FKL15A="E11", FKL17A="E11", FKL18="E11.9",
                 FKL19="E-4-10-III", FKL20=5, FKL21=4, FKL23=3, FKL31=1,
-                FKL32=5_100_000.0, FKL47=12_400_000.0,
+                FKL32=5_100_000.0, FKL47=14_800_000.0,
                 los=2,
-                secondary_diagnoses=["Z00.0", "E11.0"],
+                secondary_diagnoses=["Z00.0", "E11.0", "R51"],
                 peer_group_id="2_1_2_1"
             ),
             "los_inflation": SingleClaimInput(

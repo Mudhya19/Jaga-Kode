@@ -31,10 +31,34 @@ class ClaimEvaluationResponse(BaseModel):
     rule_violations: List[str] = Field(default_factory=list, description="Daftar Aturan Klinis yang Dilanggar")
     radar: RadarDimensions = Field(..., description="Dekomposisi Radar 5-Sumbu untuk XAI")
     clinical_narrative: List[str] = Field(default_factory=list, description="Poin-Poin Alasan Klinis yang Transparan")
+    explanation_text: str = Field(default="", description="Narasi Penjelasan Klinis Terpadu (XAI Summary)")
     cost_peer_ratio: float = Field(..., description="Rasio Biaya Tagih terhadap Median Peer Group")
     los_peer_zscore: float = Field(..., description="Z-Score LoS terhadap Rata-rata Peer Group")
     comorbidity_count: int = Field(..., description="Jumlah Diagnosis Sekunder yang Ditagihkan")
     has_severe_comorbidity: int = Field(..., description="Indikator Adanya Komorbiditas Mayor Organ Vital")
+    # Atribut Konteks Klaim untuk Claim Detail Inspector & Simulator
+    FKL07: Optional[int] = Field(default=None, description="Kepemilikan Faskes")
+    FKL08: Optional[int] = Field(default=None, description="Jenis Faskes")
+    FKL09: Optional[int] = Field(default=None, description="Kelas RS / Tipe Faskes")
+    FKL10: Optional[int] = Field(default=2, description="Tingkat Pelayanan (1=RJTL, 2=RITL)")
+    FKL14: Optional[int] = Field(default=1, description="Status Pulang")
+    FKL15A: Optional[str] = Field(default=None, description="Diagnosis Masuk ICD-10")
+    FKL17A: Optional[str] = Field(default=None, description="Diagnosis Primer ICD-10 3-Digit")
+    FKL18: Optional[str] = Field(default=None, description="Diagnosis Primer ICD-10 Spesifik")
+    FKL19: Optional[str] = Field(default=None, description="Kode Kelompok Tarif INA-CBG")
+    FKL20: Optional[int] = Field(default=None, description="Kode Casemix Main Group (CMG)")
+    FKL21: Optional[int] = Field(default=None, description="Jenis Prosedur")
+    FKL23: Optional[int] = Field(default=None, description="Kode Severity INA-CBG")
+    severity_level: Optional[int] = Field(default=None, description="Tingkat Keparahan Ternormalisasi (1-3)")
+    FKL31: Optional[int] = Field(default=None, description="Regional Tarif INA-CBG")
+    FKL32: Optional[float] = Field(default=None, description="Tarif Standar Acuan INA-CBG (Rupiah)")
+    FKL33: Optional[float] = Field(default=0.0, description="Tarif Top-Up Special CMG (Rupiah)")
+    FKL47: Optional[float] = Field(default=None, description="Biaya Tagih Rumah Sakit (Rupiah)")
+    los: Optional[int] = Field(default=None, description="Lama Rawat Inap / Length of Stay (Hari)")
+    peer_group_id: Optional[str] = Field(default=None, description="ID Kelompok Faskes Sejenis")
+    secondary_diagnoses: List[str] = Field(default_factory=list, description="Daftar Kode Diagnosis Sekunder ICD-10")
+    plausibility_score: Optional[float] = Field(default=None, description="Skor Plausibilitas Klinis Ko-okurensi (0-1)")
+    unbundling_index: Optional[float] = Field(default=None, description="Indeks Indikasi Unbundling Tarif (0-100)")
 
 
 class BatchEvaluationSummary(BaseModel):
@@ -44,6 +68,7 @@ class BatchEvaluationSummary(BaseModel):
     medium_risk_count: int = Field(..., description="Jumlah Klaim Verifikasi Terarah (Kuning)")
     low_risk_count: int = Field(..., description="Jumlah Klaim Jalur Cepat / Fast-Track (Hijau)")
     total_billed_idr: float = Field(..., description="Total Biaya yang Diklaimkan Faskes (Rupiah)")
+    high_risk_billed_idr: float = Field(default=0.0, description="Total Tagihan pada Klaim Risiko Tinggi (Rupiah)")
     total_disputed_potential_idr: float = Field(..., description="Estimasi Dana DJS yang Berpotensi Diselamatkan (Rupiah)")
     fast_track_percentage: float = Field(..., description="Persentase Klaim Lolos Otomatis (% Waktu Verifikator Hemat)")
     results: List[ClaimEvaluationResponse] = Field(..., description="Daftar Lengkap Hasil Evaluasi Tiap Klaim")
@@ -54,15 +79,32 @@ class AuditActionRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="ignore")
 
     claim_id: str = Field(..., min_length=1, max_length=64, description="Nomor Kunjungan / Claim ID")
-    decision: str = Field(..., min_length=1, max_length=64, description="Pilihan: APPROVED, PENDING_VERIFICATION, REJECTED_UPCODING")
+    decision: str = Field(..., min_length=1, max_length=64, description="Pilihan: APPROVED, PENDING_CLARIFICATION, PENDING_VERIFICATION, REJECTED_UPCODING")
     verifier_id: str = Field(default="VERIF-BPJS-01", min_length=1, max_length=64, description="ID Petugas Verifikator BPJS")
-    verifier_notes: str = Field(default="", max_length=2000, description="Catatan Medis Hasil Klarifikasi Berkas Rekam Medis")
+    verifier_notes: str = Field(..., min_length=3, max_length=2000, description="Catatan Medis Wajib Hasil Klarifikasi Berkas Rekam Medis")
     dispute_prevented_idr: Optional[float] = Field(
         default=0.0,
         ge=0.0,
         le=1e12,
         allow_inf_nan=False,
         description="Nominal Selisih Biaya yang Dikoreksi (Rupiah)",
+    )
+    risk_index: Optional[float] = Field(
+        default=0.0,
+        ge=0.0,
+        le=100.0,
+        allow_inf_nan=False,
+        description="Skor Risiko Komposit Klaim Saat Diverifikasi (0-100)",
+    )
+    risk_category: Optional[str] = Field(
+        default="VERIFIED",
+        max_length=32,
+        description="Kategori Risiko Klaim Saat Diverifikasi",
+    )
+    primary_driver: Optional[str] = Field(
+        default="HUMAN_IN_THE_LOOP_DECISION",
+        max_length=128,
+        description="Faktor Pemicu Utama Risiko Klaim",
     )
 
     @field_validator("claim_id", "verifier_id", mode="before")
@@ -90,11 +132,11 @@ class AuditActionRequest(BaseModel):
     @field_validator("verifier_notes", mode="before")
     @classmethod
     def sanitize_verifier_notes(cls, v):
-        if v is None:
-            return ""
-        if not isinstance(v, str):
-            raise ValueError("Field 'verifier_notes' harus berupa teks (string).")
+        if v is None or not isinstance(v, str):
+            raise ValueError("Field 'verifier_notes' wajib diisi berupa teks (string).")
         s = v.strip()
+        if len(s) < 3:
+            raise ValueError("Catatan medis verifikator ('verifier_notes') wajib diisi (minimal 3 karakter).")
         if _DANGEROUS_NOTES_RE.search(s):
             raise ValueError("Field 'verifier_notes' mengandung karakter kontrol atau tag HTML tidak diizinkan.")
         return s
