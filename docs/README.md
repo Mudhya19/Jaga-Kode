@@ -24,6 +24,7 @@ Dokumentasi ini disusun secara komprehensif, modular, dan mendalam guna menjadi 
 | **05** | [`05_METRIK_EVALUASI_DAN_PENGUJIAN.md`](./05_METRIK_EVALUASI_DAN_PENGUJIAN.md) | Metrik evaluasi berbasis dampak operasional (*Precision@K*, *Review Yield*, *Initial Screening Time*, *PR-AUC*), skenario uji coba sintetis, dan matriks pengujian beban verifikasi. |
 | **06** | [`06_TATA_KELOLA_PRIVASI_DAN_ETIKA.md`](./06_TATA_KELOLA_PRIVASI_DAN_ETIKA.md) | Kerangka *Privacy by Design* (Kepatuhan UU PDP No. 27/2022), minimisasi data, enkripsi & RBAC, mitigasi bias algoritma (*fairness* antar-kelas RS), serta batasan etis non-otonom. |
 | **07** | [`07_PETA_JALAN_DAN_MANAJEMEN_PROYEK.md`](./07_PETA_JALAN_DAN_MANAJEMEN_PROYEK.md) | Rencana eksekusi 6 fase, profil dan alokasi peran Tim SI DANDANG, manajemen mitigasi risiko proyek, serta kepatuhan regulasi resmi (Permenkes 16/2019 & 26/2021). |
+| **08** | [`08_PANDUAN_SISTEM_DAN_OPERASIONAL_WEB.md`](./08_PANDUAN_SISTEM_DAN_OPERASIONAL_WEB.md) | Panduan komprehensif penggunaan antarmuka web verifikator, pemahaman arsitektur AI Guardrail, navigasi 5 skenario juri, formula matematis Risk Fusion, dan skrip live demo 3 menit Healthkathon. |
 
 ---
 

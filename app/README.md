@@ -38,3 +38,9 @@ Direktori `app/` memuat layanan backend microservice (`app/api/`) dan antarmuka 
   cd app/web
   npm run build
   ```
+
+---
+
+## 3. Panduan Penggunaan & Pembelajaran Mendalam
+Untuk panduan operasional langkah-demi-langkah, pembedahan logika matematika AI Guardrail, navigasi 5 skenario juri, serta skrip presentasi video 3 menit Healthkathon, silakan baca dokumen resmi:
+📖 **[`docs/08_PANDUAN_SISTEM_DAN_OPERASIONAL_WEB.md`](../docs/08_PANDUAN_SISTEM_DAN_OPERASIONAL_WEB.md)**.

@@ -42,7 +42,8 @@ Jaga-Kode/
 │   ├── 04_SPESIFIKASI_DATA_DAN_REKAYASA_FITUR.md # Kamus data, LoS z-score, & Peer Grouping
 │   ├── 05_METRIK_EVALUASI_DAN_PENGUJIAN.md   # Precision@K, Review Yield, PR-AUC, & skenario uji
 │   ├── 06_TATA_KELOLA_PRIVASI_DAN_ETIKA.md   # Privacy by design (UU PDP), RBAC, & anti-bias
-│   └── 07_PETA_JALAN_DAN_MANAJEMEN_PROYEK.md # Roadmap 6 fase, RACI Tim SI DANDANG, & referensi
+│   ├── 07_PETA_JALAN_DAN_MANAJEMEN_PROYEK.md # Roadmap 6 fase, RACI Tim SI DANDANG, & referensi
+│   └── 08_PANDUAN_SISTEM_DAN_OPERASIONAL_WEB.md # Panduan komprehensif antarmuka web, XAI radar, & skrip live demo 3 menit
 ├── images/                             # Aset visual, diagram alur, dan grafik evaluasi
 │   ├── export/                         # Diagram arsitektur sistem, XAI radar, & diagram alir
 │   └── output/                         # Grafik performa, Precision@K, PR-AUC, & matriks evaluasi
