@@ -30,6 +30,12 @@ async def lifespan(app: FastAPI):
         f"Model berhasil di-cache: Profiler={len(service.profiler.peer_profiles):,} faskes, "
         f"IsolationForest={service.iso_model.is_fitted}."
     )
+    logger.info("----------------------------------------------------------------")
+    logger.info("Dokumentasi Interaktif API siap diakses (Ctrl+Klik untuk membuka):")
+    logger.info("  -> Swagger UI   : http://127.0.0.1:8000/docs")
+    logger.info("  -> ReDoc        : http://127.0.0.1:8000/redoc")
+    logger.info("  -> Health Check : http://127.0.0.1:8000/api/v1/health")
+    logger.info("----------------------------------------------------------------")
     yield
     logger.info("=== Mematikan JAGA-KODE REST API Server ===")
 
