@@ -1,8 +1,12 @@
 """
 Pydantic Response Schemas for JAGA-KODE REST API
 """
+import re
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+_VALID_AUDIT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\.\-\_:]{0,63}$")
+_DANGEROUS_NOTES_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f<>]|\$\{")
 
 
 class RadarDimensions(BaseModel):
@@ -47,11 +51,53 @@ class BatchEvaluationSummary(BaseModel):
 
 class AuditActionRequest(BaseModel):
     """Perekaman Keputusan Verifikator Manusia (Human-in-the-Loop)."""
-    claim_id: str = Field(..., description="Nomor Kunjungan / Claim ID")
-    decision: str = Field(..., description="Pilihan: APPROVED, PENDING_VERIFICATION, REJECTED_UPCODING")
-    verifier_id: str = Field(default="VERIF-BPJS-01", description="ID Petugas Verifikator BPJS")
-    verifier_notes: str = Field(default="", description="Catatan Medis Hasil Klarifikasi Berkas Rekam Medis")
-    dispute_prevented_idr: Optional[float] = Field(default=0.0, description="Nominal Selisih Biaya yang Dikoreksi (Rupiah)")
+    model_config = ConfigDict(str_strip_whitespace=True, extra="ignore")
+
+    claim_id: str = Field(..., min_length=1, max_length=64, description="Nomor Kunjungan / Claim ID")
+    decision: str = Field(..., min_length=1, max_length=64, description="Pilihan: APPROVED, PENDING_VERIFICATION, REJECTED_UPCODING")
+    verifier_id: str = Field(default="VERIF-BPJS-01", min_length=1, max_length=64, description="ID Petugas Verifikator BPJS")
+    verifier_notes: str = Field(default="", max_length=2000, description="Catatan Medis Hasil Klarifikasi Berkas Rekam Medis")
+    dispute_prevented_idr: Optional[float] = Field(
+        default=0.0,
+        ge=0.0,
+        le=1e12,
+        allow_inf_nan=False,
+        description="Nominal Selisih Biaya yang Dikoreksi (Rupiah)",
+    )
+
+    @field_validator("claim_id", "verifier_id", mode="before")
+    @classmethod
+    def validate_audit_identifiers(cls, v, info):
+        if v is None or not isinstance(v, str):
+            raise ValueError(f"Field '{info.field_name}' harus berupa teks (string) dan tidak boleh kosong.")
+        s = v.strip()
+        if not s:
+            raise ValueError(f"Field '{info.field_name}' tidak boleh kosong atau hanya spasi.")
+        if ".." in s or not _VALID_AUDIT_ID_RE.match(s):
+            raise ValueError(f"Field '{info.field_name}' mengandung karakter tidak valid atau berbahaya.")
+        return s
+
+    @field_validator("decision", mode="before")
+    @classmethod
+    def normalize_decision(cls, v):
+        if v is None or not isinstance(v, str):
+            raise ValueError("Field 'decision' harus berupa teks (string) dan wajib diisi.")
+        s = v.strip().upper()
+        if not s or ".." in s or not _VALID_AUDIT_ID_RE.match(s):
+            raise ValueError("Field 'decision' tidak valid.")
+        return s
+
+    @field_validator("verifier_notes", mode="before")
+    @classmethod
+    def sanitize_verifier_notes(cls, v):
+        if v is None:
+            return ""
+        if not isinstance(v, str):
+            raise ValueError("Field 'verifier_notes' harus berupa teks (string).")
+        s = v.strip()
+        if _DANGEROUS_NOTES_RE.search(s):
+            raise ValueError("Field 'verifier_notes' mengandung karakter kontrol atau tag HTML tidak diizinkan.")
+        return s
 
 
 class AuditActionResponse(BaseModel):

@@ -38,9 +38,13 @@ def _prepare_feature_matrix(df: pd.DataFrame, feature_cols: List[str]) -> np.nda
     work = pd.DataFrame(index=df.index)
     for col in feature_cols:
         if col in df.columns:
-            work[col] = df[col].fillna(0.0).astype(np.float32)
+            arr = pd.to_numeric(df[col], errors="coerce").to_numpy(dtype=np.float64)
+            arr = np.nan_to_num(arr, nan=0.0, posinf=1e6, neginf=-1e6)
+            work[col] = np.clip(arr, -1e6, 1e6).astype(np.float32)
         elif col == "severity_level" and "FKL23" in df.columns:
-            work[col] = np.clip(df["FKL23"].fillna(1).astype(np.float32) - 1.0, 0.0, 3.0)
+            arr = pd.to_numeric(df["FKL23"], errors="coerce").to_numpy(dtype=np.float64)
+            arr = np.nan_to_num(arr, nan=1.0, posinf=4.0, neginf=1.0)
+            work[col] = np.clip(arr - 1.0, 0.0, 3.0).astype(np.float32)
         else:
             work[col] = np.float32(0.0)
     return work.values

@@ -39,13 +39,15 @@ class ClinicalRuleEngine:
     def _resolve_single_severity(claim: Dict[str, Any]) -> int:
         if "severity_level" in claim:
             return int(claim["severity_level"])
-        fkl19 = str(claim.get("FKL19", ""))
-        if fkl19.endswith("-III"):
+        fkl19 = str(claim.get("FKL19", "")).strip().upper()
+        if fkl19.endswith(("-III", "-3")):
             return 3
-        if fkl19.endswith("-II"):
+        if fkl19.endswith(("-II", "-2")):
             return 2
-        if fkl19.endswith("-I"):
+        if fkl19.endswith(("-I", "-1")):
             return 1
+        if fkl19.endswith("-0"):
+            return 0
         raw_sev = int(claim.get("FKL23", 0))
         if raw_sev == 4:
             return 3

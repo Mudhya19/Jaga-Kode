@@ -4,6 +4,7 @@ Dependency Injection & Core Model Service for JAGA-KODE REST API
 import os
 import json
 import logging
+import threading
 from typing import List, Dict, Any, Optional
 import numpy as np
 import pandas as pd
@@ -45,6 +46,9 @@ class JagaKodeService:
         self.auditor = AuditTrailLogger(
             audit_file=os.path.join(LOGS_AUDIT_DIR, "verification_audit_trail.jsonl")
         )
+        self._sample_df_cache: Optional[pd.DataFrame] = None
+        self._sample_df_path: Optional[str] = None
+        self._sample_cache_lock = threading.Lock()
         self.is_ready = False
 
     def initialize(self):
@@ -90,14 +94,26 @@ class JagaKodeService:
         self.is_ready = True
         logger.info("JagaKodeService siap melayani inferensi.")
 
+    def get_sample_claims_df(self, sample_csv_path: str) -> pd.DataFrame:
+        """Memuat dan menyimpan cache DataFrame klaim sampel riil secara thread-safe."""
+        norm_path = os.path.abspath(sample_csv_path)
+        if self._sample_df_cache is not None and self._sample_df_path == norm_path:
+            return self._sample_df_cache.copy(deep=False)
+        with self._sample_cache_lock:
+            if self._sample_df_cache is None or self._sample_df_path != norm_path:
+                self._sample_df_cache = pd.read_csv(norm_path, keep_default_na=False)
+                self._sample_df_path = norm_path
+        return self._sample_df_cache.copy(deep=False)
+
     def _claims_to_dataframe(self, claims: List[SingleClaimInput]) -> pd.DataFrame:
         """Mengonversi daftar Pydantic model SingleClaimInput ke Pandas DataFrame."""
         rows = []
         for c in claims:
-            sec_diag = list(c.secondary_diagnoses or [])
+            sec_diag = [str(d).strip().upper() for d in (c.secondary_diagnoses or []) if str(d).strip()]
             has_severe = int(any(d.startswith(SEVERE_COMORBIDITY_PREFIXES) for d in sec_diag))
-            has_spec = int(bool(c.FKL33 and c.FKL33 > 0))
+            has_spec = int(bool(c.FKL33 is not None and c.FKL33 > 0))
             pg_id = c.peer_group_id or f"{c.FKL07}_{c.FKL08}_{c.FKL09}_{c.FKL31}"
+            fkl32_val = c.FKL32 if (c.FKL32 is not None and c.FKL32 > 0) else c.FKL47
 
             row = {
                 "FKL02": c.FKL02,
@@ -106,19 +122,19 @@ class JagaKodeService:
                 "FKL09": c.FKL09,
                 "FKL10": c.FKL10,
                 "FKL14": c.FKL14,
-                "FKL15A": c.FKL15A or c.FKL17A,
-                "FKL17A": c.FKL17A,
-                "FKL18": c.FKL18 or c.FKL17A,
-                "FKL19": c.FKL19,
+                "FKL15A": (c.FKL15A or c.FKL17A).upper(),
+                "FKL17A": c.FKL17A.upper(),
+                "FKL18": (c.FKL18 or c.FKL17A).upper(),
+                "FKL19": c.FKL19.upper(),
                 "FKL20": c.FKL20,
                 "FKL21": c.FKL21,
                 "FKL23": c.FKL23,
                 "FKL31": c.FKL31,
-                "FKL32": c.FKL32 or c.FKL47,
-                "FKL33": c.FKL33 or 0.0,
-                "FKL47": c.FKL47,
+                "FKL32": float(fkl32_val),
+                "FKL33": float(c.FKL33 if c.FKL33 is not None else 0.0),
+                "FKL47": float(c.FKL47),
                 "FKL48": c.FKL48,
-                "los": c.los,
+                "los": int(c.los),
                 "peer_group_id": pg_id,
                 "comorbidity_count": len(sec_diag),
                 "has_severe_comorbidity": has_severe,
@@ -187,13 +203,13 @@ class JagaKodeService:
 
             res = ClaimEvaluationResponse(
                 claim_id=str(row["FKL02"]),
-                risk_index=float(row["risk_index"]),
+                risk_index=round(float(row["risk_index"]), 1),
                 risk_category=cat,
                 badge_color=badge,
                 primary_driver=str(xai["primary_driver"]),
                 recommended_action=str(row["recommended_action"]),
-                rule_risk_score=float(row.get("rule_risk_score", 0.0)),
-                ml_anomaly_score=float(row.get("ml_anomaly_score", 0.0)),
+                rule_risk_score=round(float(row.get("rule_risk_score", 0.0)), 1),
+                ml_anomaly_score=round(float(row.get("ml_anomaly_score", 0.0)), 2),
                 rule_violations=viols,
                 radar=radar_obj,
                 clinical_narrative=list(xai.get("narrative", [])),
@@ -222,6 +238,7 @@ class JagaKodeService:
             verifier_decision=req.decision,
             verifier_id=req.verifier_id,
             clinical_notes=req.verifier_notes,
+            dispute_prevented_idr=float(req.dispute_prevented_idr or 0.0),
         )
         return AuditActionResponse(
             success=True,
@@ -234,6 +251,34 @@ class JagaKodeService:
     def get_recent_audits(self, limit: int = 20) -> List[Dict[str, Any]]:
         """Membaca rekaman jejak audit terbaru."""
         return self.auditor.read_recent_audits(limit=limit)
+
+    def get_peer_group_stats(self, peer_group_id: Optional[str] = None, cmg: Optional[int] = None) -> Dict[str, Any]:
+        """Mengambil statistik agregat distribusi biaya dan LoS kelompok sejenis (Peer Group)."""
+        if not self.profiler:
+            return {"global_profile": {}, "total_peer_cmg_profiles": 0, "matched_profile": None}
+        matched = None
+        resolution_level = "global_fallback"
+        if peer_group_id:
+            pg_clean = peer_group_id.strip()
+            if cmg is not None:
+                cell_key = f"{pg_clean}_CMG{int(cmg)}"
+                if cell_key in self.profiler.peer_profiles:
+                    matched = self.profiler.peer_profiles[cell_key]
+                    resolution_level = "level_1_peer_group_cmg"
+            if matched is None and pg_clean in self.profiler.pg_fallback_profiles:
+                matched = self.profiler.pg_fallback_profiles[pg_clean]
+                resolution_level = "level_2_peer_group"
+        if matched is None:
+            matched = self.profiler.global_profile
+        return {
+            "peer_group_id": peer_group_id,
+            "cmg": cmg,
+            "resolution_level": resolution_level,
+            "profile": matched,
+            "total_peer_cmg_profiles": len(self.profiler.peer_profiles),
+            "total_peer_groups": len(self.profiler.pg_fallback_profiles),
+            "global_profile": self.profiler.global_profile,
+        }
 
     def get_sample_preset_cases(self) -> Dict[str, SingleClaimInput]:
         """Menyediakan 4 contoh skenario kecurangan + 1 kasus wajar untuk demo 1-klik."""
@@ -289,14 +334,18 @@ class JagaKodeService:
         }
 
 
-# Global Singleton Instance
+# Global Singleton Instance with Thread-Safe Lock
 _service_instance: Optional[JagaKodeService] = None
+_service_lock = threading.Lock()
 
 
 def get_jaga_kode_service() -> JagaKodeService:
-    """Dependency Provider untuk rute FastAPI."""
+    """Dependency Provider thread-safe untuk rute FastAPI."""
     global _service_instance
     if _service_instance is None:
-        _service_instance = JagaKodeService()
-        _service_instance.initialize()
+        with _service_lock:
+            if _service_instance is None:
+                instance = JagaKodeService()
+                instance.initialize()
+                _service_instance = instance
     return _service_instance

@@ -94,19 +94,21 @@ def normalize_severity_column(fkl10_series, fkl23_series, fkl19_series=None):
     fkl23_arr = pd.Series(fkl23_series).fillna(0).astype(int).values
     fkl10_arr = pd.Series(fkl10_series).fillna(1).astype(int).values
 
-    # Jika terdapat nilai 4 pada dataset, maka skema mengikuti Stata 1-based (1..4)
-    if fkl19_series is not None:
-        s19 = pd.Series(fkl19_series).astype(str)
-        sev = np.zeros(len(s19), dtype=np.int8)
-        sev = np.where(s19.str.endswith("-I"), 1, sev)
-        sev = np.where(s19.str.endswith("-II"), 2, sev)
-        sev = np.where(s19.str.endswith("-III"), 3, sev)
-        return sev
-
     if np.any(fkl23_arr == 4) or np.all((fkl10_arr == 1) & (fkl23_arr == 1)):
-        return np.clip(fkl23_arr - 1, 0, 3).astype(np.int8)
+        fallback_sev = np.clip(fkl23_arr - 1, 0, 3).astype(np.int8)
+    else:
+        fallback_sev = np.clip(fkl23_arr, 0, 3).astype(np.int8)
 
-    return np.clip(fkl23_arr, 0, 3).astype(np.int8)
+    if fkl19_series is not None:
+        s19 = pd.Series(fkl19_series).astype(str).str.strip().str.upper()
+        sev = fallback_sev.copy()
+        sev = np.where(s19.str.endswith("-0"), 0, sev)
+        sev = np.where(s19.str.endswith("-I") | s19.str.endswith("-1"), 1, sev)
+        sev = np.where(s19.str.endswith("-II") | s19.str.endswith("-2"), 2, sev)
+        sev = np.where(s19.str.endswith("-III") | s19.str.endswith("-3"), 3, sev)
+        return sev.astype(np.int8)
+
+    return fallback_sev
 
 
 def load_system_config(config_path: str = "config/config.example.yaml") -> Dict[str, Any]:

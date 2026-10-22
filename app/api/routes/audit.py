@@ -12,8 +12,11 @@ logger = logging.getLogger("jaga_kode.api.audit")
 
 router = APIRouter(prefix="/audit", tags=["Jejak Audit Human-in-the-Loop"])
 
+VALID_DECISIONS = ("APPROVED", "PENDING_VERIFICATION", "REJECTED_UPCODING")
+
 
 @router.post("/action", response_model=AuditActionResponse, summary="Catat Keputusan Verifikator Manusia")
+@router.post("/log", response_model=AuditActionResponse, include_in_schema=False)
 def record_verifier_action(
     req: AuditActionRequest,
     service: JagaKodeService = Depends(get_jaga_kode_service),
@@ -22,17 +25,18 @@ def record_verifier_action(
     Mencatat keputusan akhir verifikator BPJS (Human-in-the-Loop) ke jejak audit persisten
     sesuai prinsip kepatuhan UU No. 27/2022 (Pelindungan Data Pribadi).
     """
-    valid_decisions = {"APPROVED", "PENDING_VERIFICATION", "REJECTED_UPCODING"}
-    if req.decision not in valid_decisions:
+    if req.decision not in VALID_DECISIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Keputusan tidak valid: '{req.decision}'. Pilihan yang diizinkan: {list(valid_decisions)}",
+            detail=f"Keputusan tidak valid: '{req.decision}'. Pilihan yang diizinkan: {list(VALID_DECISIONS)}",
         )
     try:
         return service.record_audit(req)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Gagal mencatat audit: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Gagal mencatat audit: {str(e)}")
+        raise HTTPException(status_code=500, detail="Gagal mencatat keputusan audit karena kesalahan internal server.")
 
 
 @router.get("/recent", response_model=List[Dict[str, Any]], summary="Ambil Daftar Riwayat Audit Terbaru")
@@ -43,6 +47,8 @@ def get_recent_audit_records(
     """Mengambil riwayat audit keputusan verifikator terkini."""
     try:
         return service.get_recent_audits(limit=limit)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Gagal membaca audit: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Gagal membaca riwayat audit: {str(e)}")
+        raise HTTPException(status_code=500, detail="Gagal membaca riwayat audit karena kesalahan internal server.")
