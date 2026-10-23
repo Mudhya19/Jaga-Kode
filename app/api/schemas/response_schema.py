@@ -5,8 +5,9 @@ import re
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-_VALID_AUDIT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\.\-\_:]{0,63}$")
-_DANGEROUS_NOTES_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f<>]|\$\{")
+_VALID_AUDIT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\.\-\_\:\/]{0,127}$")
+_VALID_VERIFIER_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\.\-\_\:\,\s]{0,127}$")
+_DANGEROUS_NOTES_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]|\$\{|\<(?:\/?[a-zA-Z!]|script)", re.IGNORECASE)
 
 
 class RadarDimensions(BaseModel):
@@ -78,10 +79,10 @@ class AuditActionRequest(BaseModel):
     """Perekaman Keputusan Verifikator Manusia (Human-in-the-Loop)."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="ignore")
 
-    claim_id: str = Field(..., min_length=1, max_length=64, description="Nomor Kunjungan / Claim ID")
+    claim_id: str = Field(..., min_length=1, max_length=128, description="Nomor Kunjungan / Claim ID")
     decision: str = Field(..., min_length=1, max_length=64, description="Pilihan: APPROVED, PENDING_CLARIFICATION, PENDING_VERIFICATION, REJECTED_UPCODING")
-    verifier_id: str = Field(default="VERIF-BPJS-01", min_length=1, max_length=64, description="ID Petugas Verifikator BPJS")
-    verifier_notes: str = Field(..., min_length=3, max_length=2000, description="Catatan Medis Wajib Hasil Klarifikasi Berkas Rekam Medis")
+    verifier_id: str = Field(default="VERIF-BPJS-01", min_length=1, max_length=128, description="ID Petugas Verifikator BPJS")
+    verifier_notes: str = Field(..., min_length=3, max_length=4000, description="Catatan Medis Wajib Hasil Klarifikasi Berkas Rekam Medis")
     dispute_prevented_idr: Optional[float] = Field(
         default=0.0,
         ge=0.0,
@@ -98,25 +99,37 @@ class AuditActionRequest(BaseModel):
     )
     risk_category: Optional[str] = Field(
         default="VERIFIED",
-        max_length=32,
+        max_length=64,
         description="Kategori Risiko Klaim Saat Diverifikasi",
     )
     primary_driver: Optional[str] = Field(
         default="HUMAN_IN_THE_LOOP_DECISION",
-        max_length=128,
+        max_length=512,
         description="Faktor Pemicu Utama Risiko Klaim",
     )
 
-    @field_validator("claim_id", "verifier_id", mode="before")
+    @field_validator("claim_id", mode="before")
     @classmethod
-    def validate_audit_identifiers(cls, v, info):
+    def validate_claim_id(cls, v):
         if v is None or not isinstance(v, str):
-            raise ValueError(f"Field '{info.field_name}' harus berupa teks (string) dan tidak boleh kosong.")
+            raise ValueError("Field 'claim_id' harus berupa teks (string) dan tidak boleh kosong.")
         s = v.strip()
         if not s:
-            raise ValueError(f"Field '{info.field_name}' tidak boleh kosong atau hanya spasi.")
+            raise ValueError("Field 'claim_id' tidak boleh kosong atau hanya spasi.")
         if ".." in s or not _VALID_AUDIT_ID_RE.match(s):
-            raise ValueError(f"Field '{info.field_name}' mengandung karakter tidak valid atau berbahaya.")
+            raise ValueError("Field 'claim_id' mengandung karakter tidak valid atau berbahaya.")
+        return s
+
+    @field_validator("verifier_id", mode="before")
+    @classmethod
+    def validate_verifier_id(cls, v):
+        if v is None or not isinstance(v, str):
+            return "VERIF-BPJS-01"
+        s = v.strip()
+        if not s:
+            return "VERIF-BPJS-01"
+        if ".." in s or not _VALID_VERIFIER_ID_RE.match(s):
+            raise ValueError("Field 'verifier_id' mengandung karakter tidak valid atau berbahaya.")
         return s
 
     @field_validator("decision", mode="before")
@@ -124,8 +137,8 @@ class AuditActionRequest(BaseModel):
     def normalize_decision(cls, v):
         if v is None or not isinstance(v, str):
             raise ValueError("Field 'decision' harus berupa teks (string) dan wajib diisi.")
-        s = v.strip().upper()
-        if not s or ".." in s or not _VALID_AUDIT_ID_RE.match(s):
+        s = v.strip().upper().replace(" ", "_").replace("-", "_")
+        if not s or ".." in s or not re.match(r"^[A-Z][A-Z0-9\_]{0,63}$", s):
             raise ValueError("Field 'decision' tidak valid.")
         return s
 

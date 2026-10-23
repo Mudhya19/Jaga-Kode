@@ -617,3 +617,17 @@ def test_frontend_integration_contract_and_priority_triage(tmp_path, monkeypatch
     )
     assert resp_clar.status_code == 200
     assert resp_clar.json()["success"] is True
+
+    # Uji ketahanan terhadap keputusan tanpa underscore, verifier nama dokter, claim_id garis miring, dan catatan klinis dengan operator >/<
+    resp_resilient = client.post(
+        "/api/v1/audit/action",
+        json={
+            "claim_id": "0023R001/01/24/V0001",
+            "decision": "REJECTED UPCODING",
+            "verifier_id": "dr. Budi Santoso, Sp.A",
+            "verifier_notes": "Koreksi tarif: durasi rawat > 3 hari tanpa indikasi dan hasil lab leukosit < 10.000.",
+            "dispute_prevented_idr": 2300000.0,
+        },
+    )
+    assert resp_resilient.status_code == 200
+    assert resp_resilient.json()["success"] is True
