@@ -236,10 +236,10 @@ export const CustomClaimForm: React.FC<CustomClaimFormProps> = ({
                 type="button"
                 onClick={onBack}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
-                title="Kembali ke 1-Click Live Demo Simulator"
+                title="Kembali Live Demo Simulator"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                <span>Kembali</span>
+                <span>Kembali Live Demo Simulator</span>
               </button>
             )}
             <button

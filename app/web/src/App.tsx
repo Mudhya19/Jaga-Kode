@@ -721,9 +721,9 @@ export default function App() {
           onRunBatchSimulation={handleRunBatchSimulation}
         />
 
-        {/* Feature 2: 1-Click Live Demo Simulator & Custom Evaluator Section */}
+        {/* Feature 2: Live Demo Simulator & Parameter Input Klaim Section */}
         <section
-          aria-label="1-Click Live Demo Simulator & Custom Claim Evaluator"
+          aria-label="Live Demo Simulator & Parameter Input Klaim FKRTL"
           className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-[#111827] sm:p-5"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -734,8 +734,8 @@ export default function App() {
               <div>
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white sm:text-base">
                   {showCustomForm
-                    ? 'Parameter Input Klaim FKRTL (Custom Claim Evaluator)'
-                    : '1-Click Live Demo Simulator (5 Skenario Uji Juri Healthkathon) & Custom Claim Evaluator'}
+                    ? 'Parameter Input Klaim FKRTL'
+                    : 'Live Demo Simulator (5 Skenario Uji Juri Healthkathon)'}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {showCustomForm
@@ -753,12 +753,12 @@ export default function App() {
               {showCustomForm ? (
                 <>
                   <ArrowLeft className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Kembali ke 1-Click Live Demo Simulator</span>
+                  <span>Kembali Live Demo Simulator</span>
                 </>
               ) : (
                 <>
                   <Sliders className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Buka Form Simulator Klaim Kustom</span>
+                  <span>Form Parameter Klaim</span>
                   <ChevronDown className="h-3.5 w-3.5" />
                 </>
               )}
