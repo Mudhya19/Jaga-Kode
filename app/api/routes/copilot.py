@@ -7,6 +7,7 @@ Mendukung Zero-PII, header X-Gemini-API-Key, serta fallback deterministik lokal.
 """
 import logging
 from typing import Optional
+from datetime import datetime
 from fastapi import APIRouter, Header, HTTPException
 
 from app.api.schemas.copilot_schema import (
@@ -16,7 +17,7 @@ from app.api.schemas.copilot_schema import (
     CopilotChatResponse,
     CopilotStatusResponse,
 )
-from src.xai.gemini_copilot import GeminiClinicalCopilot
+from src.xai.gemini_copilot import GeminiClinicalCopilot, sanitize_claim_for_zero_pii
 
 logger = logging.getLogger("jaga_kode.api.copilot")
 
@@ -62,7 +63,8 @@ def explain_claim_with_copilot(
     try:
         copilot = get_copilot()
         claim_data = req.claim_data or {}
-        claim_id = str(claim_data.get("claim_id") or claim_data.get("FKL02") or "CLM-ANONYMOUS")
+        safe_ctx = sanitize_claim_for_zero_pii(claim_data)
+        claim_id = safe_ctx["claim_pseudonym"]
         custom_key = req.gemini_api_key or x_gemini_api_key
 
         narrative_text = None
@@ -70,6 +72,7 @@ def explain_claim_with_copilot(
         source_mode = "unknown"
         model_name = copilot.preferred_model
         timestamp = ""
+        computed_dispute_amount = float(req.dispute_prevented_idr or 0.0)
 
         if req.include_narrative:
             narrative_res = copilot.generate_clinical_audit_narrative(claim_data, custom_key=custom_key)
@@ -83,17 +86,23 @@ def explain_claim_with_copilot(
                 claim_data, req.dispute_prevented_idr or 0.0, custom_key=custom_key
             )
             letter_text = letter_res.get("letter")
+            computed_dispute_amount = float(letter_res.get("dispute_amount_idr", computed_dispute_amount))
             if source_mode == "unknown":
                 source_mode = letter_res.get("source", "unknown")
                 model_name = letter_res.get("model", model_name)
             if not timestamp:
                 timestamp = letter_res.get("timestamp", "")
 
+        if not timestamp:
+            timestamp = datetime.now().isoformat()
+        if source_mode == "unknown":
+            source_mode = "no_generation_requested"
+
         return CopilotExplainResponse(
             claim_id=claim_id,
             narrative=narrative_text,
             letter=letter_text,
-            dispute_amount_idr=req.dispute_prevented_idr or 0.0,
+            dispute_amount_idr=computed_dispute_amount,
             source=source_mode,
             model=model_name,
             timestamp=timestamp,
@@ -111,18 +120,17 @@ def _handle_copilot_ask(req: CopilotChatRequest, x_gemini_api_key: Optional[str]
     try:
         copilot = get_copilot()
         claim_data = req.claim_data or {}
-        claim_id = str(claim_data.get("claim_id") or claim_data.get("FKL02") or "CLM-ANONYMOUS")
         custom_key = req.gemini_api_key or x_gemini_api_key
 
         history_payload = [h.model_dump() for h in (req.history or [])]
         chat_res = copilot.copilot_chat(claim_data, req.prompt, history_payload, custom_key=custom_key)
 
         return CopilotChatResponse(
-            claim_id=claim_id,
+            claim_id=chat_res.get("claim_id", "CLM-ANONYMIZED"),
             reply=chat_res.get("reply", ""),
             source=chat_res.get("source", "unknown"),
             model=chat_res.get("model", copilot.preferred_model),
-            timestamp=chat_res.get("timestamp", ""),
+            timestamp=chat_res.get("timestamp", datetime.now().isoformat()),
         )
     except HTTPException:
         raise

@@ -18,6 +18,8 @@ Menyediakan:
 import os
 import json
 import logging
+import re
+import hashlib
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 import httpx
@@ -31,19 +33,41 @@ logger = logging.getLogger("jaga_kode.copilot")
 DEFAULT_GEMINI_MODELS: List[str] = [
     "gemini-flash-lite-latest",
     "gemini-flash-latest",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-flash",
-    "gemini-3.1-flash-lite",
     "gemini-3.5-flash",
     "gemini-3.8-flash",
 ]
 
 # Field terlarang yang wajib disanitasi sebelum dikirim ke LLM publik (UU PDP No. 27/2022)
 FORBIDDEN_PII_KEYS = {
-    "nama", "nama_pasien", "patient_name", "nik", "no_kartu", "no_peserta", "card_number",
-    "no_rm", "nomor_rekam_medis", "mrn", "alamat", "address", "telepon", "phone",
-    "tanggal_lahir", "dob", "birth_date", "nama_dokter", "doctor_name", "nik_dokter",
+    "nama", "nama_pasien", "patient_name", "nama_peserta", "peserta", "pasien",
+    "nik", "nik_pasien", "nik_dokter", "no_identitas", "nomor_identitas", "ktp", "no_ktp", "nomor_ktp",
+    "no_kartu", "no_peserta", "nomor_kartu", "nomor_peserta", "card_number",
+    "no_rm", "nomor_rekam_medis", "mrn", "medical_record_no",
+    "alamat", "address", "alamat_pasien", "alamat_peserta",
+    "telepon", "phone", "no_telepon", "no_hp", "nomor_telepon", "handphone", "kontak",
+    "email", "email_pasien",
+    "tanggal_lahir", "dob", "birth_date", "tgl_lahir", "tempat_lahir",
+    "nama_dokter", "doctor_name", "dokter", "dpjp", "nama_dpjp", "sip_dokter",
+    "gender", "jenis_kelamin",
 }
+
+_NIK_PATTERN = re.compile(r"\b\d{16}\b")
+_BPJS_CARD_PATTERN = re.compile(r"\b\d{13}\b")
+_PHONE_PATTERN = re.compile(r"\b(?:\+62|62|08)[0-9]{8,12}\b")
+_EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
+_RM_PATTERN = re.compile(r"(?i)\b(?:no\.?\s*rm|rekam\s*medis|mrn)\s*[:=]?\s*[0-9\-\.\/]+")
+
+
+def scrub_pii_from_text(text: str) -> str:
+    """Membersihkan teks bebas dari NIK 16 digit, No Kartu BPJS 13 digit, email, telepon, dan no RM."""
+    if not text:
+        return ""
+    s = _NIK_PATTERN.sub("[NIK-DISAMARKAN]", text)
+    s = _BPJS_CARD_PATTERN.sub("[NO-KARTU-DISAMARKAN]", s)
+    s = _PHONE_PATTERN.sub("[TELEPON-DISAMARKAN]", s)
+    s = _EMAIL_PATTERN.sub("[EMAIL-DISAMARKAN]", s)
+    s = _RM_PATTERN.sub("No. RM: [DIHAPUS-UU-PDP]", s)
+    return s
 
 
 def sanitize_claim_for_zero_pii(claim_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -59,6 +83,12 @@ def sanitize_claim_for_zero_pii(claim_data: Dict[str, Any]) -> Dict[str, Any]:
             continue
         clean_dict[k] = v
 
+    raw_id = str(clean_dict.get("claim_id") or clean_dict.get("FKL02") or "CLM-ANONYMIZED").strip()
+    if re.fullmatch(r"\d{13,16}", raw_id) or "NIK" in raw_id.upper() or "KARTU" in raw_id.upper():
+        pseudo_id = f"CLM-ANON-{hashlib.sha256(raw_id.encode('utf-8')).hexdigest()[:8].upper()}"
+    else:
+        pseudo_id = raw_id
+
     radar = clean_dict.get("radar") or {}
     radar_5_axis = {
         "los_deviation": float(radar.get("los_deviation", clean_dict.get("los_peer_zscore", 0.0))),
@@ -68,8 +98,12 @@ def sanitize_claim_for_zero_pii(claim_data: Dict[str, Any]) -> Dict[str, Any]:
         "regulatory_violation": float(radar.get("regulatory_violation", len(clean_dict.get("rule_violations") or []))),
     }
 
+    raw_decision = str(clean_dict.get("audit_decision") or clean_dict.get("decision") or clean_dict.get("status") or "").strip().upper().replace(" ", "_")
+    if raw_decision not in ("PENDING_CLARIFICATION", "REJECTED_UPCODING", "APPROVED"):
+        raw_decision = "REJECTED_UPCODING" if clean_dict.get("risk_category") == "HIGH_RISK" else "PENDING_CLARIFICATION"
+
     safe_summary = {
-        "claim_pseudonym": str(clean_dict.get("claim_id") or clean_dict.get("FKL02") or "CLM-ANONYMIZED"),
+        "claim_pseudonym": pseudo_id,
         "primary_diagnosis_icd10": str(clean_dict.get("FKL17A") or clean_dict.get("FKL18") or "-"),
         "secondary_diagnoses_icd10": clean_dict.get("secondary_diagnoses") or [],
         "ina_cbg_code": str(clean_dict.get("FKL19") or "-"),
@@ -86,6 +120,7 @@ def sanitize_claim_for_zero_pii(claim_data: Dict[str, Any]) -> Dict[str, Any]:
         "radar_5_axis_metrics": radar_5_axis,
         "hospital_class": clean_dict.get("FKL09"),
         "hospital_ownership": clean_dict.get("FKL07"),
+        "audit_decision": raw_decision,
     }
     return safe_summary
 
@@ -180,8 +215,15 @@ class GeminiClinicalCopilot:
                             f"Gemini API model '{model_name}' status {resp.status_code}. Mencoba model berikutnya..."
                         )
                         continue
+                    elif resp.status_code in (400, 401, 403):
+                        logger.error(
+                            f"Gemini API authentication/argument error pada '{model_name}': {resp.status_code} - {resp.text[:200]}. "
+                            "Menghentikan percobaan model dan beralih ke fallback lokal."
+                        )
+                        break
                     else:
                         logger.error(f"Gemini API error pada '{model_name}': {resp.status_code} - {resp.text[:200]}")
+                        continue
                 except Exception as e:
                     logger.warning(f"Koneksi gagal ke model Gemini '{model_name}': {e}. Beralih ke kandidat berikutnya.")
                     continue
@@ -269,28 +311,37 @@ Formatkan telaah klinis ke dalam struktur poin-poin berikut:
             safe_ctx.get("billed_hospital_cost_idr", 0.0) - safe_ctx.get("standard_ina_cbg_tariff_idr", 0.0)
         )
         safe_ctx["dispute_amount_idr"] = dispute_amount
+        decision = str(safe_ctx.get("audit_decision") or "PENDING_CLARIFICATION").upper()
         claim_json_str = json.dumps(safe_ctx, indent=2, ensure_ascii=False)
 
         system_instruction = (
             "Anda adalah Kepala Bagian Penjaminan Manfaat & Verifikasi Klaim Kantor Cabang BPJS Kesehatan. "
             "Tugas Anda adalah membuat draf resmi Surat Klarifikasi dan Konfirmasi Klaim FKRTL yang ditujukan kepada Direktur Rumah Sakit. "
             "Surat harus formal, santun namun tegas secara regulasi, mengutip Permenkes No. 26/2021 dan Permenkes No. 16/2019, "
-            "serta merinci dokumen pembuktian medis yang wajib diserahkan pihak RS dalam batas waktu yang ditentukan."
+            "serta merinci dokumen pembuktian medis yang wajib diserahkan pihak RS dalam batas waktu yang ditentukan. "
+            f"Status verifikasi saat ini adalah: {decision}."
+        )
+
+        perihal_text = (
+            f"Pemberitahuan Penetapan Koreksi Upcoding & Rekonsiliasi Tarif Klaim FKRTL atas Kunjungan No. {safe_ctx['claim_pseudonym']}"
+            if "REJECTED" in decision
+            else f"Konfirmasi dan Klarifikasi Kelengkapan Bukti Medis Klaim JKN-KIS atas Kunjungan No. {safe_ctx['claim_pseudonym']}"
         )
 
         user_prompt = f"""
-Buat draf resmi Surat Konfirmasi dan Klarifikasi Klaim FKRTL berdasarkan temuan anomali data berikut:
+Buat draf resmi Surat Resmi BPJS Kesehatan ke Rumah Sakit berdasarkan temuan data klaim berikut:
 ```json
 {claim_json_str}
 ```
+Status Keputusan Verifikasi: {decision}
 Nominal estimasi selisih koreksi / potensi dispute: Rp {dispute_amount:,.2f}
 
 Ketentuan struktur surat resmi:
-- **Kop / Nomor Surat**: [Format Nomor Registrasi BPJS Kesehatan]
+- **Kop / Nomor Surat**: [Format Nomor Registrasi Resmi BPJS Kesehatan]
 - **Tujuan**: Yth. Direktur Rumah Sakit / FKRTL & Tim Casemix
-- **Perihal**: Konfirmasi dan Klarifikasi Kode Diagnosis/Tindakan Klaim JKN-KIS atas Kunjungan No. {safe_ctx['claim_pseudonym']}
+- **Perihal**: {perihal_text}
 - **Dasar Hukum**: Permenkes No. 26/2021 Pasal 3 & 4 (Kaidah Koding INA-CBG) dan Permenkes No. 16/2019 (Pencegahan Kecurangan Klaim).
-- **Rincian Temuan Anomali**: Uraikan indikasi ketidaksesuaian koding (misal eskalasi severity, komorbiditas tanpa penatalaksanaan terbukti, atau perpanjangan hari rawat).
+- **Rincian Temuan Anomali & Tindak Lanjut ({decision})**: Uraikan indikasi ketidaksesuaian koding (eskalasi severity, komorbiditas tanpa penatalaksanaan terbukti, atau perpanjangan hari rawat) serta keputusan koreksi tarif atau penundaan klaim.
 - **Permintaan Berkas Pembuktian**: Resume Medis terverifikasi DPJP, Catatan Perkembangan Pasien Terintegrasi (CPPT), Hasil Pemeriksaan Penunjang (Lab/Radiologi), dan Rincian Biaya Riil Farmasi.
 - **Tenggat Waktu Klarifikasi**: 3 (tiga) hari kerja sejak surat ini diterima.
 - **Penutup & Tanda Tangan**: Tim Verifikasi Klaim & Anti-Fraud BPJS Kesehatan Kantor Cabang.
@@ -328,8 +379,10 @@ Ketentuan struktur surat resmi:
         """
         Tanya jawab konsultatif interaktif antara petugas verifikator dengan AI Clinical Copilot.
         Memungkinkan verifikator mengeksplorasi kode ICD alternatif, pedoman koding, atau SOP audit.
+        Dilengkapi pembersihan Zero-PII otomatis pada pertanyaan verifikator & histori pesan.
         """
         safe_ctx = sanitize_claim_for_zero_pii(claim_data)
+        clean_prompt = scrub_pii_from_text(user_prompt)
         claim_json_str = json.dumps(safe_ctx, indent=2, ensure_ascii=False)
 
         system_instruction = (
@@ -344,7 +397,8 @@ Ketentuan struktur surat resmi:
             history_context = "\n[Riwayat Percakapan Sebelumnya]:\n"
             for msg in chat_history[-6:]:
                 role = "Verifikator" if msg.get("role") == "user" else "Copilot"
-                history_context += f"{role}: {msg.get('text', '')}\n"
+                clean_msg_text = scrub_pii_from_text(msg.get("text", ""))
+                history_context += f"{role}: {clean_msg_text}\n"
 
         full_prompt = f"""
 [Konteks Klaim Terpilih (Zero-PII)]:
@@ -353,7 +407,7 @@ Ketentuan struktur surat resmi:
 ```
 {history_context}
 [Pertanyaan Verifikator]:
-{user_prompt}
+{clean_prompt}
 
 Jawab dengan lugas, informatif, dan berikan rekomendasi aksi konkret bagi verifikator.
 """
@@ -449,9 +503,24 @@ Jawab dengan lugas, informatif, dan berikan rekomendasi aksi konkret bagi verifi
         dx_sec = ", ".join(ctx.get("secondary_diagnoses_icd10", [])) or "Tidak ada"
         los = ctx.get("length_of_stay_days", 0)
         rules = ", ".join(ctx.get("triggered_permenkes_rules", [])) or "Ketidaksesuaian kaidah koding klinis"
+        decision = str(ctx.get("audit_decision", "PENDING_CLARIFICATION")).upper()
 
         today_str = datetime.now().strftime("%d %B %Y")
         ref_no = f"B/{datetime.now().strftime('%Y%m%d')}/JAGA-KODE/KC-04"
+
+        is_rejected = "REJECTED" in decision
+        subject = (
+            f"Pemberitahuan Penetapan Koreksi Upcoding & Rekonsiliasi Tarif Klaim FKRTL (Kunjungan: {cid})"
+            if is_rejected
+            else f"Konfirmasi dan Klarifikasi Kelengkapan Bukti Medis Klaim FKRTL (Kunjungan: {cid})"
+        )
+        status_label = "REJECTED (KOREKSI UPCODING)" if is_rejected else "PENDING CLARIFICATION (MENUNGGU BUKTI MEDIS)"
+
+        tindak_lanjut = (
+            "-> Tindak Lanjut Verifikasi: Klaim ditetapkan mengalami penyesuaian koreksi tarif (rekoding ke Severity Level I atau penolakan eskalasi biaya) karena dokumentasi komorbiditas tidak memenuhi kriteria penatalaksanaan aktif. Apabila pihak RS bermaksud mengajukan sanggahan, wajib menyertakan dokumen pembuktian sah."
+            if is_rejected
+            else "-> Tindak Lanjut Verifikasi: Proses penjaminan klaim ditunda sementara (pending clarification) sampai pihak FKRTL melengkapi dokumen pembuktian penatalaksanaan medis yang sah."
+        )
 
         letter = f"""KEMENTERIAN KESEHATAN REPUBLIK INDONESIA / BPJS KESEHATAN
 KANTOR CABANG UTAMA PENJAMINAN MANFAAT RUJUKAN
@@ -460,8 +529,7 @@ Jl. Letjen Suprapto Cempaka Putih, Jakarta Pusat | Telepon: (021) 4212938
 Nomor       : {ref_no}                                        {today_str}
 Sifat       : Penting / Konfidensial (Zero-PII Compliance)
 Lampiran    : 1 (satu) Berkas Analisis Anomali AI
-Perihal     : Konfirmasi dan Klarifikasi Kode Diagnosis & Tindakan Klaim FKRTL
-              Nomor Kunjungan: {cid}
+Perihal     : {subject}
 
 Kepada Yth.
 Direktur Rumah Sakit / Pimpinan FKRTL
@@ -470,9 +538,9 @@ Di Tempat
 
 Dengan hormat,
 
-Sehubungan dengan proses verifikasi pra-pembayaran (pre-verification) klaim program Jaminan Kesehatan Nasional (JKN) menggunakan Sistem Analitik AI Guardrail JAGA-KODE, bersama ini kami sampaikan bahwa terdapat berkas klaim rawat inap yang memerlukan konfirmasi dan kelengkapan bukti medis lebih lanjut:
+Sehubungan dengan proses verifikasi pra-pembayaran (pre-verification) klaim program Jaminan Kesehatan Nasional (JKN) menggunakan Sistem Analitik AI Guardrail JAGA-KODE, bersama ini kami sampaikan bahwa terdapat berkas klaim rawat inap dengan status telaah [{status_label}]:
 
-1. IDENTITAS KLAIM TERKAIT:
+1. IDENTITAS KLAIM TERKAIT (ZERO-PII COMPLIANT):
    - Nomor Kunjungan / Claim ID : {cid}
    - Diagnosis Utama Tertera     : {dx_prim}
    - Diagnosis Sekunder         : {dx_sec}
@@ -480,20 +548,22 @@ Sehubungan dengan proses verifikasi pra-pembayaran (pre-verification) klaim prog
    - Lama Rawat Inap (LoS)      : {los} Hari
    - Biaya Tagih Rumah Sakit    : Rp {ctx.get('billed_hospital_cost_idr', 0):,.2f}
    - Estimasi Selisih Koreksi   : Rp {dispute_amount:,.2f}
+   - Status Keputusan Verifikasi: {status_label}
 
 2. DASAR REGULASI & TEMUAN ANOMALI:
    Berdasarkan Peraturan Menteri Kesehatan RI No. 26 Tahun 2021 tentang Pedoman Indonesian Case Base Groups (INA-CBG) serta Peraturan Menteri Kesehatan RI No. 16 Tahun 2019 tentang Pencegahan Kecurangan, sistem mendeteksi indikasi ketidaksesuaian koding:
    -> Indikasi Pemicu: {rules}
    -> Rasio deviasi biaya mencapai {ctx.get('cost_peer_ratio', 1.0):.2f}x median kelompok faskes sejenis.
+   {tindak_lanjut}
 
 3. DOKUMEN PEMBUKTIAN YANG DIMINTA:
-   Guna kelancaran proses persetujuan klaim, kami mohon agar pihak FKRTL menyerahkan dokumen pendukung selambat-lambatnya 3 (tiga) hari kerja sejak surat ini diterima:
+   Guna kelancaran proses persetujuan dan rekonsiliasi klaim, kami mohon agar pihak FKRTL menyerahkan dokumen pendukung selambat-lambatnya 3 (tiga) hari kerja sejak surat ini diterima:
    a. Salinan Resume Medis yang ditandatangani Dokter Penanggung Jawab Pelayanan (DPJP);
-   b. Catatan Perkembangan Pasien Terintegrasi (CPPT) dan lembar instruksi terapi;
+   b. Catatan Perkembangan Pasien Terintegrasi (CPPT) dan lembar instruksi terapi dokter;
    c. Bukti pemeriksaan penunjang diagnostik (hasil laboratorium/radiologi) yang mendasari penegakan diagnosis sekunder;
    d. Rincian tagihan farmasi dan tindakan riil (billing breakdown).
 
-Demikian surat konfirmasi ini kami sampaikan atas perhatian dan kerja sama yang baik demi terwujudnya tata kelola klaim JKN yang akuntabel, transparan, dan berkeadilan.
+Demikian surat ini kami sampaikan atas perhatian dan kerja sama yang baik demi terwujudnya tata kelola klaim JKN yang akuntabel, transparan, dan berkeadilan.
 
 Hormat kami,
 BPJS KESEHATAN KANTOR CABANG
@@ -509,6 +579,8 @@ Tim Verifikasi Klaim & Pencegahan Kecurangan JKN
         cid = ctx.get("claim_pseudonym", "CLM-DEMO")
         cbg = ctx.get("ina_cbg_code", "-")
         rules = ctx.get("triggered_permenkes_rules", [])
+        sev = ctx.get("severity_level", 1)
+        los = ctx.get("length_of_stay_days", 0)
 
         if "permenkes" in q_lower or "aturan" in q_lower or "regulasi" in q_lower:
             return (
@@ -516,6 +588,32 @@ Tim Verifikasi Klaim & Pencegahan Kecurangan JKN
                 "1. **Permenkes No. 26/2021**: Menetapkan bahwa diagnosis sekunder hanya boleh dikoding jika memerlukan terapi aktif atau pemeriksaan diagnostik bermakna. "
                 f"Pada klaim ini, kode INA-CBG `{cbg}` memicu aturan: {', '.join(rules) if rules else 'Verifikasi Peer Cost'}.\n"
                 "2. **Permenkes No. 16/2019**: Pedoman deteksi potensi kecurangan seperti upcoding eskalasi severity dan pemanjangan hari rawat tanpa indikasi medis."
+            )
+        elif "dokumen" in q_lower or "berkas" in q_lower or "rekam medis" in q_lower or "bukti" in q_lower or "syarat" in q_lower:
+            return (
+                f"Berdasarkan SOP Verifikasi BPJS Kesehatan & Permenkes No. 26/2021, berkas pembuktian medis yang wajib diperiksa untuk klaim `{cid}` meliputi:\n\n"
+                "1. **Resume Medis Lengkap**: Wajib memuat indikasi rawat inap, diagnosis primer & sekunder, serta ditandatangani DPJP.\n"
+                "2. **Catatan Perkembangan Pasien Terintegrasi (CPPT)**: Bukti bahwa komorbiditas/komplikasi benar-benar mendapat penanganan terapi aktif harian.\n"
+                "3. **Hasil Pemeriksaan Penunjang (Lab/Radiologi)**: Pembuktian objektif diagnosis sekunder mayor (misal fungsi ginjal, AGD, atau rontgen thorax).\n"
+                "4. **Lembar Instruksi DPJP & Rincian Farmasi**: Konfirmasi pemberian obat injeksi/tindakan khusus yang mendukung eskalasi tarif.\n"
+                "5. **Laporan Operasi / Tindakan**: Jika terdapat klaim prosedur bedah atau penagihan Special CMG."
+            )
+        elif "severity" in q_lower or "jump" in q_lower or "los" in q_lower or "hari rawat" in q_lower or "ghost" in q_lower or "wajar" in q_lower:
+            if sev >= 2 and los <= 1:
+                eval_text = (
+                    f"Klaim dengan Severity Level {sev} namun lama rawat hanya {los} hari **sangat mencurigakan (anomali Ghost Comorbidity)**. "
+                    "Secara kaidah klinis, pasien dengan komorbiditas/komplikasi mayor membutuhkan stabilisasi hemodinamik dan observasi intensif minimal 2-3 hari. "
+                    "Rekomendasi: Rekoding ke Severity Level I atau tolak eskalasi biaya kecuali faskes dapat membuktikan kondisi darurat/rujukan."
+                )
+            else:
+                eval_text = (
+                    f"Klaim ini memiliki Severity Level {sev} dengan LoS {los} hari. "
+                    f"Rasio biaya tercatat {ctx.get('cost_peer_ratio', 1.0):.2f}x median peer group. "
+                    "Pastikan komorbiditas sekunder memiliki korelasi klinis langsung dengan pemanjangan masa rawat atau tindakan medis yang dilakukan."
+                )
+            return (
+                f"Evaluasi Tingkat Keparahan (Severity Level {sev}) vs Durasi Rawat ({los} hari) untuk klaim `{cid}`:\n\n"
+                f"{eval_text}"
             )
         elif "dispute" in q_lower or "biaya" in q_lower or "selisih" in q_lower or "rupiah" in q_lower:
             billed = ctx.get("billed_hospital_cost_idr", 0.0)
@@ -539,5 +637,5 @@ Tim Verifikasi Klaim & Pencegahan Kecurangan JKN
                 f"- Diagnosis Primer: `{ctx.get('primary_diagnosis_icd10', '-')}`\n"
                 f"- Diagnosis Sekunder: {', '.join(ctx.get('secondary_diagnoses_icd10', [])) or 'Nihil'}\n"
                 f"- Aturan Terpicu: {', '.join(rules) if rules else 'Tidak ada pelanggaran mutlak'}\n\n"
-                "Anda dapat menanyakan: 'Aturan Permenkes apa yang dilanggar?', 'Berapa potensi dispute dana DJS?', atau 'Bagaimana draf surat klarifikasi ke rumah sakit?'"
+                "Anda dapat menanyakan: 'Aturan Permenkes apa yang dilanggar?', 'Berapa potensi dispute dana DJS?', 'Dokumen rekam medis apa yang wajib diperiksa?', atau 'Apakah severity jump ini wajar untuk LoS 1 hari?'"
             )

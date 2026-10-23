@@ -172,3 +172,15 @@ class HealthStatusResponse(BaseModel):
     models_loaded: bool
     peer_profiles_count: int
     environment: str
+
+
+# Re-export Copilot Schemas for Unified Schema Access (Permenkes & Dispute Generator)
+from app.api.schemas.copilot_schema import (  # noqa: E402
+    CopilotExplainRequest,
+    CopilotExplainResponse,
+    CopilotChatRequest,
+    CopilotChatResponse,
+    CopilotStatusResponse,
+    CopilotAskRequest,
+    CopilotAskResponse,
+)

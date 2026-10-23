@@ -19,12 +19,14 @@ import type {
   ChatMessageItem,
   CopilotExplainResponse,
   CopilotStatusResponse,
+  VerifierDecision,
 } from '../../types/jagaKode';
 import { formatRupiah } from '../../utils/formatters';
 
 interface ClinicalCopilotCardProps {
   claim: ClaimEvaluationResponse;
   disputeAmount: number;
+  auditDecision?: VerifierDecision;
   apiKey?: string;
   isDark?: boolean;
 }
@@ -34,6 +36,7 @@ type ActiveCopilotTab = 'narrative' | 'letter' | 'chat';
 export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
   claim,
   disputeAmount,
+  auditDecision,
   apiKey,
 }) => {
   const [activeTab, setActiveTab] = useState<ActiveCopilotTab>('narrative');
@@ -59,6 +62,14 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
   const [chatPrompt, setChatPrompt] = useState<string>('');
   const [chatHistory, setChatHistory] = useState<ChatMessageItem[]>([]);
   const [sendingChat, setSendingChat] = useState<boolean>(false);
+
+  const getEnrichedClaim = useCallback(() => {
+    return {
+      ...(claim as unknown as Record<string, unknown>),
+      decision: auditDecision || (claim.risk_category === 'HIGH_RISK' ? 'REJECTED_UPCODING' : 'PENDING_CLARIFICATION'),
+      audit_decision: auditDecision || (claim.risk_category === 'HIGH_RISK' ? 'REJECTED_UPCODING' : 'PENDING_CLARIFICATION'),
+    };
+  }, [claim, auditDecision]);
 
   // Check copilot status on mount or key change
   const refreshStatus = useCallback(() => {
@@ -99,7 +110,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
     try {
       const res = await jagaKodeApi.explainWithCopilot(
         {
-          claim_data: claim as unknown as Record<string, unknown>,
+          claim_data: getEnrichedClaim(),
           dispute_prevented_idr: disputeAmount,
           include_narrative: true,
           include_letter: Boolean(copilotData?.letter),
@@ -129,7 +140,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
     try {
       const res = await jagaKodeApi.explainWithCopilot(
         {
-          claim_data: claim as unknown as Record<string, unknown>,
+          claim_data: getEnrichedClaim(),
           dispute_prevented_idr: disputeAmount,
           include_narrative: Boolean(copilotData?.narrative),
           include_letter: true,
@@ -184,7 +195,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
     try {
       const res = await jagaKodeApi.askCopilot(
         {
-          claim_data: claim as unknown as Record<string, unknown>,
+          claim_data: getEnrichedClaim(),
           prompt: text,
           history: chatHistory,
           gemini_api_key: geminiApiKey || undefined,
@@ -458,10 +469,10 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  Draf Resmi Surat Klarifikasi / Konfirmasi Klaim ke FKRTL
+                  Draf Resmi Surat {auditDecision === 'REJECTED_UPCODING' ? 'Penetapan Koreksi Upcoding' : 'Klarifikasi / Konfirmasi Klaim'} ke FKRTL
                 </span>
                 <span className="rounded bg-emerald-50 px-2 py-0.5 font-mono text-[10px] text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                  Estimasi Dispute: {formatRupiah(disputeAmount || 0)}
+                  Status: {auditDecision || (claim.risk_category === 'HIGH_RISK' ? 'REJECTED_UPCODING' : 'PENDING_CLARIFICATION')} | Selisih: {formatRupiah(disputeAmount || 0)}
                 </span>
               </div>
 

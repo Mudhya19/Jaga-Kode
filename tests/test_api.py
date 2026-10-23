@@ -776,3 +776,112 @@ def test_copilot_ask_endpoint_with_header_and_radar():
     assert data["claim_id"] == "CLM-COPILOT-ASK-01"
     assert "reply" in data and len(data["reply"]) > 10
 
+
+def test_copilot_zero_pii_nik_in_claim_id_and_chat_scrubbing():
+    """Menguji bahwa NIK 16 digit yang ditaruh di claim_id disamarkan dan chat prompt disaring dari PII."""
+    payload = {
+        "claim_data": {
+            "claim_id": "3171012345678901",
+            "nama_peserta": "Ibu Rahmawati",
+            "email": "rahmawati@gmail.com",
+            "no_hp": "081234567890",
+            "FKL17A": "I10",
+            "FKL19": "I-4-17-I",
+            "los": 2,
+            "FKL47": 4500000.0,
+            "FKL32": 3200000.0,
+        },
+        "dispute_prevented_idr": 0.0,
+        "include_narrative": True,
+        "include_letter": True,
+    }
+    resp = client.post("/api/v1/copilot/explain", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "3171012345678901" not in resp.text
+    assert data["claim_id"].startswith("CLM-ANON-")
+    assert "Ibu Rahmawati" not in resp.text
+    assert "rahmawati@gmail.com" not in resp.text
+    assert "081234567890" not in resp.text
+    # dispute_amount_idr otomatis dihitung dari FKL47 - FKL32
+    assert data["dispute_amount_idr"] == 1300000.0
+
+    # Uji scrubbing PII pada chat prompt
+    chat_resp = client.post(
+        "/api/v1/copilot/ask",
+        json={
+            "claim_data": {"claim_id": "CLM-SAFE-01", "FKL17A": "I10", "FKL19": "I-4-17-I"},
+            "prompt": "Tolong cek pasien NIK 3201012345678901 dan No RM: 99-88-77 apakah sah?",
+        },
+    )
+    assert chat_resp.status_code == 200
+    assert "3201012345678901" not in chat_resp.text
+
+
+def test_copilot_letter_adapts_to_rejected_upcoding_vs_pending_clarification():
+    """Menguji bahwa draf surat resmi membedakan kasus REJECTED_UPCODING vs PENDING_CLARIFICATION."""
+    claim_base = {
+        "claim_id": "CLM-SURAT-TEST-01",
+        "FKL17A": "I10",
+        "FKL19": "I-4-17-III",
+        "severity_level": 3,
+        "los": 1,
+        "FKL47": 9500000.0,
+        "FKL32": 3200000.0,
+        "rule_violations": ["RULE_GHOST_COMORBIDITY"],
+    }
+    # 1. Kasus REJECTED_UPCODING
+    resp_rej = client.post(
+        "/api/v1/copilot/explain",
+        json={
+            "claim_data": {**claim_base, "audit_decision": "REJECTED_UPCODING"},
+            "include_narrative": False,
+            "include_letter": True,
+        },
+    )
+    assert resp_rej.status_code == 200
+    letter_rej = resp_rej.json()["letter"]
+    assert "Koreksi Upcoding" in letter_rej or "REJECTED" in letter_rej
+
+    # 2. Kasus PENDING_CLARIFICATION
+    resp_clar = client.post(
+        "/api/v1/copilot/explain",
+        json={
+            "claim_data": {**claim_base, "audit_decision": "PENDING_CLARIFICATION"},
+            "include_narrative": False,
+            "include_letter": True,
+        },
+    )
+    assert resp_clar.status_code == 200
+    letter_clar = resp_clar.json()["letter"]
+    assert "Konfirmasi dan Klarifikasi" in letter_clar or "Klarifikasi" in letter_clar
+    assert "bukti" in letter_clar.lower() or "dokumen" in letter_clar.lower()
+
+
+def test_copilot_quick_prompt_fallback_branches():
+    """Menguji bahwa seluruh tombol prompt cepat UI (dokumen, severity jump) tertangani dengan tepat saat fallback."""
+    from src.xai.gemini_copilot import GeminiClinicalCopilot
+
+    copilot = GeminiClinicalCopilot()
+    claim_ctx = {
+        "claim_pseudonym": "CLM-QUICK-TEST",
+        "primary_diagnosis_icd10": "I10",
+        "secondary_diagnoses_icd10": ["N18.9"],
+        "ina_cbg_code": "I-4-17-III",
+        "severity_level": 3,
+        "length_of_stay_days": 1,
+        "cost_peer_ratio": 2.5,
+        "composite_risk_score": 88.0,
+        "triggered_permenkes_rules": ["RULE_GHOST_COMORBIDITY"],
+    }
+    # 1. Dokumen rekam medis yang wajib diperiksa
+    res_dok = copilot._build_deterministic_chat_response(claim_ctx, "Dokumen rekam medis apa yang wajib diperiksa?")
+    assert "Resume Medis" in res_dok
+    assert "CPPT" in res_dok
+    assert "Penunjang" in res_dok
+
+    # 2. Apakah severity jump ini wajar untuk LoS 1 hari?
+    res_sev = copilot._build_deterministic_chat_response(claim_ctx, "Apakah severity jump ini wajar untuk LoS 1 hari?")
+    assert "Ghost Comorbidity" in res_sev or "mencurigakan" in res_sev
+
+

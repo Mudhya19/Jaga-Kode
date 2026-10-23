@@ -48,6 +48,7 @@ export const ClaimDetailInspector: React.FC<ClaimDetailInspectorProps> = ({
       <ClinicalCopilotCard
         claim={claim}
         disputeAmount={disputeAmount || 0}
+        auditDecision={auditDecision}
         apiKey={apiKey}
         isDark={isDark}
       />
