@@ -82,6 +82,7 @@ data/synthetic/*
 # Model weights, serialized pipelines, & large checkpoints
 models/core/*
 !models/core/.gitkeep
+!models/core/README.md
 models/baselines/*
 !models/baselines/.gitkeep
 *.pkl

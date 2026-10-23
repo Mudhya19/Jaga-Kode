@@ -16,8 +16,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 MODELS_CORE_DIR = BASE_DIR / "models" / "core"
 
 
-def upload_model(repo_id: str = DEFAULT_REPO_ID, token: str = None, private: bool = False):
-    """Mengunggah seluruh berkas model di models/core/ ke Hugging Face."""
+def upload_model(repo_id: str = DEFAULT_REPO_ID, token: str = None, private: bool = False, readme_only: bool = False):
+    """Mengunggah berkas model di models/core/ ke Hugging Face."""
     hf_token = token or os.environ.get("HF_TOKEN")
     if not hf_token:
         print("PERINGATAN: HF_TOKEN belum diberikan.")
@@ -51,7 +51,7 @@ def upload_model(repo_id: str = DEFAULT_REPO_ID, token: str = None, private: boo
         sys.exit(1)
 
     print(f"\n[3/3] Mengunggah artefak model dari: {MODELS_CORE_DIR}...")
-    core_files = [
+    core_files = ["README.md"] if readme_only else [
         "README.md",
         "isolation_forest.joblib",
         "robust_scaler.joblib",
@@ -74,7 +74,7 @@ def upload_model(repo_id: str = DEFAULT_REPO_ID, token: str = None, private: boo
         else:
             print(f"      [SKIP] Berkas {fname} tidak ditemukan.")
 
-    print(f"\nSUKSES! Model JAGA-KODE berhasil diunggah ke:")
+    print(f"\nSUKSES! Berkas Model JAGA-KODE berhasil diunggah ke:")
     print(f"https://huggingface.co/{repo_id}\n")
 
 
@@ -83,6 +83,7 @@ if __name__ == "__main__":
     parser.add_argument("--repo-id", default=DEFAULT_REPO_ID, help="Hugging Face Repository ID (Default: Datheory/jaga-kode-dual-guardrail)")
     parser.add_argument("--token", default=None, help="Hugging Face User Access Token (Write)")
     parser.add_argument("--private", action="store_true", help="Set repository to private")
+    parser.add_argument("--readme-only", action="store_true", help="Hanya perbarui berkas README.md (Model Card) di Hugging Face")
     args = parser.parse_args()
 
-    upload_model(repo_id=args.repo_id, token=args.token, private=args.private)
+    upload_model(repo_id=args.repo_id, token=args.token, private=args.private, readme_only=args.readme_only)
