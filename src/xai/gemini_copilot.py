@@ -70,17 +70,46 @@ def scrub_pii_from_text(text: str) -> str:
     return s
 
 
+def humanize_decision_label(raw_decision: Optional[str]) -> str:
+    """
+    Mengubah format raw database decision menjadi kalimat baku manusiawi (Title/Sentence Case).
+    Contoh: REJECTED_UPCODING / REJECTEDUPCODING -> 'Reject Upcoding'
+            PENDING_CLARIFICATION -> 'Pending Clarification'
+            APPROVED -> 'Approved (Fast-Track)'
+    """
+    if not raw_decision:
+        return "Pending Clarification"
+    s = str(raw_decision).upper().replace("_", "").replace(" ", "")
+    if "REJECT" in s or "UPCODING" in s:
+        return "Reject Upcoding"
+    if "APPROV" in s or "FASTTRACK" in s:
+        return "Approved (Fast-Track)"
+    return "Pending Clarification"
+
+
 def clean_markdown_to_plain_text(text: str) -> str:
     """
     Mengubah teks berformat Markdown menjadi teks bersih (plain text)
     yang siap dicetak, disalin ke Microsoft Word, Notepad, chat (WhatsApp/Telegram),
     atau naskah dinas resmi tanpa simbol markdown (**bold**, *italic*, ### heading, `code`, --- divider).
+    Serta menormalkan format status keputusan ke Sentence Case (contoh: Reject Upcoding).
     """
     if not text:
         return ""
 
+    # Normalisasi format status keputusan verifikasi & aturan mentah
+    s = re.sub(r"(?i)\bREJECTED_?UPCODING\b", "Reject Upcoding", text)
+    s = re.sub(r"(?i)\bREJECT_?UPCODING\b", "Reject Upcoding", s)
+    s = re.sub(r"(?i)\bPENDING_?CLARIFICATION\b", "Pending Clarification", s)
+    s = re.sub(r"(?i)\bAPPROVED_?FAST_?TRACK\b", "Approved (Fast-Track)", s)
+    s = re.sub(r"(?i)\bRULE_SEVERITY_JUMP\b", "Severity Jump", s)
+    s = re.sub(r"(?i)\bRULE_GHOST_COMORBIDITY\b", "Ghost Comorbidity", s)
+    s = re.sub(r"(?i)\bRULE_LOS_INFLATION\b", "LoS Inflation", s)
+    s = re.sub(r"(?i)\bRULE_UNBUNDLING\b", "Unbundling", s)
+    s = re.sub(r"(?i)\bRULE_READMISSION_30D\b", "Readmission 30D", s)
+
     # 1. Hapus code blocks
-    s = re.sub(r"```[a-zA-Z]*\n?", "", text)
+    s = re.sub(r"```[a-zA-Z]*\n?", "", s)
     s = s.replace("```", "")
 
     # 2. Ganti markdown headings (# Heading, ## Heading, ### Heading) menjadi teks bersih
@@ -103,6 +132,10 @@ def clean_markdown_to_plain_text(text: str) -> str:
 
     # 7. Hapus sisa-sisa asterisks atau backticks yang terisolasi
     s = s.replace("**", "").replace("`", "")
+
+    # Normalisasi ulang status agar tidak ada residu format mentah
+    s = re.sub(r"(?i)\bREJECTED_?UPCODING\b", "Reject Upcoding", s)
+    s = re.sub(r"(?i)\bPENDING_?CLARIFICATION\b", "Pending Clarification", s)
 
     # 8. Rapikan baris kosong berlebihan (maksimal 2 baris berturut-turut)
     s = re.sub(r"\n{3,}", "\n\n", s)
@@ -362,6 +395,7 @@ Formatkan telaah klinis ke dalam struktur teks bersih (plain text) tanpa format 
         )
         safe_ctx["dispute_amount_idr"] = dispute_amount
         decision = str(safe_ctx.get("audit_decision") or "PENDING_CLARIFICATION").upper()
+        human_decision = humanize_decision_label(decision)
         claim_json_str = json.dumps(safe_ctx, indent=2, ensure_ascii=False)
 
         system_instruction = (
@@ -369,14 +403,15 @@ Formatkan telaah klinis ke dalam struktur teks bersih (plain text) tanpa format 
             "Tugas Anda adalah membuat draf resmi Surat Klarifikasi dan Konfirmasi Klaim FKRTL yang ditujukan kepada Direktur Rumah Sakit. "
             "Surat harus formal, santun namun tegas secara regulasi, mengutip Permenkes No. 26/2021 dan Permenkes No. 16/2019, "
             "serta merinci dokumen pembuktian medis yang wajib diserahkan pihak RS dalam batas waktu yang ditentukan. "
-            f"Status verifikasi saat ini adalah: {decision}. "
+            f"Status verifikasi saat ini adalah: {human_decision}. "
             "PENTING: Jangan gunakan format Markdown (seperti tanda bintang **, tanda pagar ###, atau backtick `). "
+            "Wajib gunakan penulisan resmi manusiawi (Sentence/Title Case), contoh: 'Status Keputusan Verifikasi: Reject Upcoding' atau 'Pending Clarification'. Dilarang menulis dalam format huruf besar bersambung seperti REJECTEDUPCODING. "
             "Hasilkan format surat dinas resmi dengan teks bersih (plain text) siap cetak dan siap salin ke Microsoft Word, Notepad, atau email dinas."
         )
 
-        if "REJECTED" in decision:
+        if "REJECT" in decision or "UPCODING" in decision:
             perihal_text = f"Pemberitahuan Penetapan Koreksi Upcoding & Rekonsiliasi Tarif Klaim FKRTL atas Kunjungan No. {safe_ctx['claim_pseudonym']}"
-        elif "APPROVED" in decision:
+        elif "APPROV" in decision:
             perihal_text = f"Pemberitahuan Persetujuan Pembayaran Klaim Rawat Inap (Fast-Track) atas Kunjungan No. {safe_ctx['claim_pseudonym']}"
         else:
             perihal_text = f"Konfirmasi dan Klarifikasi Kelengkapan Bukti Medis Klaim JKN-KIS atas Kunjungan No. {safe_ctx['claim_pseudonym']}"
@@ -386,7 +421,7 @@ Buat draf resmi Surat Resmi BPJS Kesehatan ke Rumah Sakit berdasarkan temuan dat
 ```json
 {claim_json_str}
 ```
-Status Keputusan Verifikasi: {decision}
+Status Keputusan Verifikasi: {human_decision}
 Nominal estimasi selisih koreksi / potensi dispute: Rp {dispute_amount:,.2f}
 
 Ketentuan struktur surat resmi (format teks bersih tanpa format markdown):
@@ -394,7 +429,8 @@ Ketentuan struktur surat resmi (format teks bersih tanpa format markdown):
 - Tujuan: Yth. Direktur Rumah Sakit / FKRTL & Tim Casemix
 - Perihal: {perihal_text}
 - Dasar Hukum: Permenkes No. 26/2021 Pasal 3 & 4 (Kaidah Koding INA-CBG) dan Permenkes No. 16/2019 (Pencegahan Kecurangan Klaim).
-- Rincian Temuan Anomali & Tindak Lanjut ({decision}): Uraikan indikasi ketidaksesuaian koding (eskalasi severity, komorbiditas tanpa penatalaksanaan terbukti, atau perpanjangan hari rawat) serta keputusan koreksi tarif atau penundaan klaim.
+- Rincian Temuan Anomali & Tindak Lanjut ({human_decision}): Uraikan indikasi ketidaksesuaian koding (eskalasi severity, komorbiditas tanpa penatalaksanaan terbukti, atau perpanjangan hari rawat) serta keputusan koreksi tarif atau penundaan klaim.
+- Status Keputusan Verifikasi: {human_decision}
 - Permintaan Berkas Pembuktian: Resume Medis terverifikasi DPJP, Catatan Perkembangan Pasien Terintegrasi (CPPT), Hasil Pemeriksaan Penunjang (Lab/Radiologi), dan Rincian Biaya Riil Farmasi.
 - Tenggat Waktu Klarifikasi: 3 (tiga) hari kerja sejak surat ini diterima.
 - Penutup & Tanda Tangan: Tim Verifikasi Klaim & Anti-Fraud BPJS Kesehatan Kantor Cabang.
@@ -504,6 +540,18 @@ Jawab dengan lugas, informatif, dan berikan rekomendasi aksi konkret bagi verifi
         rules_text = ", ".join(rules) if rules else "Tidak ada pelanggaran aturan mutlak terpicu"
         radar = ctx.get("radar_5_axis_metrics", {})
 
+        raw_risk = str(ctx.get('risk_category', 'UNKNOWN')).upper()
+        if 'HIGH' in raw_risk:
+            risk_cat_human = 'Risiko Tinggi (Reject Upcoding)'
+        elif 'MEDIUM' in raw_risk:
+            risk_cat_human = 'Risiko Sedang (Pending Clarification)'
+        elif 'LOW' in raw_risk:
+            risk_cat_human = 'Risiko Rendah (Approved / Fast-Track)'
+        else:
+            risk_cat_human = raw_risk.title()
+
+        decision_human = humanize_decision_label(ctx.get('audit_decision') or ctx.get('decision'))
+
         narrative = f"""TELAAH KLINIS FORMAL VERIFIKASI KLAIM FKRTL
 Nomor Kunjungan / Claim ID: {cid}
 Standar Regulasi: Permenkes RI No. 26 Tahun 2021 & Permenkes RI No. 16 Tahun 2019
@@ -512,7 +560,8 @@ Kepatuhan Data: Zero-PII Standard (UU Perlindungan Data Pribadi No. 27 Tahun 202
 
 1. Ringkasan Triase Risiko & Skor Komposit
 - Composite Priority Score (CPS): {ctx.get('composite_risk_score', 0):.1f} / 100
-- Kategori Risiko: {ctx.get('risk_category', 'UNKNOWN')}
+- Kategori Risiko: {risk_cat_human}
+- Status Keputusan Verifikasi: {decision_human}
 - Faktor Risiko Utama: {ctx.get('primary_risk_driver', '-')}
 - Aturan Guardrail Terpicu: {rules_text}
 
@@ -576,19 +625,19 @@ Kepatuhan Data: Zero-PII Standard (UU Perlindungan Data Pribadi No. 27 Tahun 202
         today_str = datetime.now().strftime("%d %B %Y")
         ref_no = f"B/{datetime.now().strftime('%Y%m%d')}/JAGA-KODE/KC-04"
 
-        is_rejected = "REJECTED" in decision
-        is_approved = "APPROVED" in decision
+        is_rejected = "REJECT" in decision or "UPCODING" in decision
+        is_approved = "APPROV" in decision or "FASTTRACK" in decision
         if is_rejected:
-            subject = f"Pemberitahuan Penetapan Koreksi Upcoding & Rekonsiliasi Tarif Klaim FKRTL (Kunjungan: {cid})"
-            status_label = "REJECTED (KOREKSI UPCODING)"
+            subject = f"Pemberitahuan Penetapan Koreksi Upcoding atas Kunjungan No. {cid}"
+            status_label = "Reject Upcoding"
             tindak_lanjut = "-> Tindak Lanjut Verifikasi: Klaim ditetapkan mengalami penyesuaian koreksi tarif (rekoding ke Severity Level I atau penolakan eskalasi biaya) karena dokumentasi komorbiditas tidak memenuhi kriteria penatalaksanaan aktif. Apabila pihak RS bermaksud mengajukan sanggahan, wajib menyertakan dokumen pembuktian sah."
         elif is_approved:
             subject = f"Pemberitahuan Persetujuan Pembayaran Klaim Rawat Inap (Fast-Track) atas Kunjungan No. {cid}"
-            status_label = "APPROVED (LOLOS VERIFIKASI / FAST-TRACK)"
+            status_label = "Approved (Fast-Track)"
             tindak_lanjut = "-> Tindak Lanjut Verifikasi: Berkas klaim dinyatakan lolos verifikasi administrasi dan audit klinis (Fast-Track). Biaya pelayanan disetujui sesuai tarif standar INA-CBG tanpa catatan dispute."
         else:
-            subject = f"Konfirmasi dan Klarifikasi Kelengkapan Bukti Medis Klaim FKRTL (Kunjungan: {cid})"
-            status_label = "PENDING CLARIFICATION (MENUNGGU BUKTI MEDIS)"
+            subject = f"Konfirmasi dan Klarifikasi Kelengkapan Bukti Medis Klaim FKRTL atas Kunjungan No. {cid}"
+            status_label = "Pending Clarification"
             tindak_lanjut = "-> Tindak Lanjut Verifikasi: Proses penjaminan klaim ditunda sementara (pending clarification) sampai pihak FKRTL melengkapi dokumen pembuktian penatalaksanaan medis yang sah."
 
         letter = f"""KEMENTERIAN KESEHATAN REPUBLIK INDONESIA / BPJS KESEHATAN

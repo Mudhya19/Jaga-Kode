@@ -40,21 +40,30 @@ export function formatNarrativeText(text: string | undefined | null): string {
   if (!text) return '';
   return text
     .replace(/RULE_([A-Za-z0-9_]+)/g, (_, r) => r.replace(/_/g, ' '))
-    .replace(/\bHIGH_RISK\b/g, 'High Risk')
-    .replace(/\bMEDIUM_RISK\b/g, 'Medium Risk')
-    .replace(/\bLOW_RISK\b/g, 'Low Risk')
-    .replace(/\bPENDING_CLARIFICATION\b/g, 'Pending Clarification')
-    .replace(/\bREJECTED_UPCODING\b/g, 'Rejected Upcoding')
-    .replace(/\bPROFIL_KLAIM_WAJAR\b/g, 'Profil Klaim Wajar');
+    .replace(/\bHIGH_RISK\b/gi, 'High Risk')
+    .replace(/\bMEDIUM_RISK\b/gi, 'Medium Risk')
+    .replace(/\bLOW_RISK\b/gi, 'Low Risk')
+    .replace(/\bPENDING_?CLARIFICATION\b/gi, 'Pending Clarification')
+    .replace(/\bREJECTED_?UPCODING\b/gi, 'Reject Upcoding')
+    .replace(/\bREJECT_?UPCODING\b/gi, 'Reject Upcoding')
+    .replace(/\bAPPROVED_?FAST_?TRACK\b/gi, 'Approved (Fast-Track)')
+    .replace(/\bAPPROVED\b/gi, 'Approved')
+    .replace(/\bPROFIL_KLAIM_WAJAR\b/gi, 'Profil Klaim Wajar');
 }
 
 /**
  * Membersihkan teks dari sintaks Markdown (seperti **, *, #, `, ---)
+ * dan menormalkan format status keputusan verifikasi ke Sentence Case (contoh: Reject Upcoding)
  * sehingga siap disalin ke Microsoft Word, Notepad, WhatsApp/Chat, atau naskah dinas resmi.
  */
 export function cleanPlainTextForCopy(text: string | undefined | null): string {
   if (!text) return '';
   return text
+    // Normalisasi kode status mentah sebelum markdown parsing
+    .replace(/\bREJECTED_?UPCODING\b/gi, 'Reject Upcoding')
+    .replace(/\bREJECT_?UPCODING\b/gi, 'Reject Upcoding')
+    .replace(/\bPENDING_?CLARIFICATION\b/gi, 'Pending Clarification')
+    .replace(/\bAPPROVED_?FAST_?TRACK\b/gi, 'Approved (Fast-Track)')
     // 1. Hapus code blocks ``` ... ```
     .replace(/```[a-zA-Z]*\n?/g, '')
     .replace(/```/g, '')
@@ -71,10 +80,14 @@ export function cleanPlainTextForCopy(text: string | undefined | null): string {
     .replace(/`([^`]+)`/g, '$1')
     // 6. Normalkan bullet points (* item -> - item)
     .replace(/^\s*[\*\+]\s+/gm, '- ')
-    // 7. Bersihkan sisa-sisa asterisks atau backtick yang terisolasi
+    // 7. Normalisasi ulang status database jika ada sisa
+    .replace(/\bREJECTED_?UPCODING\b/gi, 'Reject Upcoding')
+    .replace(/\bREJECT_?UPCODING\b/gi, 'Reject Upcoding')
+    .replace(/\bPENDING_?CLARIFICATION\b/gi, 'Pending Clarification')
+    // 8. Bersihkan sisa-sisa asterisks atau backtick yang terisolasi
     .replace(/\*\*/g, '')
     .replace(/`/g, '')
-    // 8. Rapikan baris kosong berlebih
+    // 9. Rapikan baris kosong berlebih
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }

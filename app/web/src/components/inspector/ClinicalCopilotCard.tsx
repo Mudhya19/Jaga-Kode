@@ -144,6 +144,17 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
     }
   };
 
+  // Reset individual tabs to clean empty state (Refresh handler)
+  const handleResetNarrative = () => {
+    setCopilotData((prev) => (prev ? { ...prev, narrative: null } : null));
+    setErrorMessage(null);
+  };
+
+  const handleResetLetter = () => {
+    setCopilotData((prev) => (prev ? { ...prev, letter: null } : null));
+    setErrorMessage(null);
+  };
+
   // Copy Narrative handler (clean plain text ready for Word/Notepad/Chat)
   const handleCopyNarrative = () => {
     if (!copilotData?.narrative) return;
@@ -240,10 +251,10 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                   }`}
                 >
                   {isHighRisk
-                    ? 'Risiko Tinggi (Upcoding)'
+                    ? 'Risiko Tinggi (Reject Upcoding)'
                     : isMediumRisk
-                    ? 'Risiko Sedang (Klarifikasi)'
-                    : 'Risiko Rendah (Fast-Track)'}
+                    ? 'Risiko Sedang (Pending Clarification)'
+                    : 'Risiko Rendah (Approved / Fast-Track)'}
                 </span>
               </div>
 
@@ -252,13 +263,12 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <button
                     type="button"
-                    onClick={handleGenerateNarrative}
-                    disabled={loadingNarrative}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer disabled:opacity-50"
-                    title="Muat ulang telaah narasi klinis"
+                    onClick={handleResetNarrative}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+                    title="Kosongkan tampilan untuk memulai telaah baru"
                   >
-                    <RefreshCw className={`h-3.5 w-3.5 ${loadingNarrative ? 'animate-spin text-indigo-600' : ''}`} />
-                    <span>{loadingNarrative ? 'Memperbarui...' : 'Refresh'}</span>
+                    <RefreshCw className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>Refresh</span>
                   </button>
 
                   <button
@@ -344,7 +354,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                 </span>
                 {/* Status Badge dinamis sesuai risiko */}
                 <span className={`rounded px-2 py-0.5 font-mono text-[10px] font-semibold border ${statusBadgeClass}`}>
-                  Status: {isLowRisk ? 'Approved (Fast-Track)' : formattedDecision}
+                  Status: {isLowRisk ? 'Approved (Fast-Track)' : isHighRisk ? 'Reject Upcoding' : 'Pending Clarification'}
                 </span>
                 {disputeAmount > 0 && !isLowRisk && (
                   <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -358,13 +368,12 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <button
                     type="button"
-                    onClick={handleGenerateLetter}
-                    disabled={loadingLetter}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer disabled:opacity-50"
-                    title="Muat ulang draf surat korespondensi"
+                    onClick={handleResetLetter}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+                    title="Kosongkan tampilan untuk memulai draf baru"
                   >
-                    <RefreshCw className={`h-3.5 w-3.5 ${loadingLetter ? 'animate-spin text-emerald-600' : ''}`} />
-                    <span>{loadingLetter ? 'Menyusun...' : 'Refresh'}</span>
+                    <RefreshCw className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Refresh</span>
                   </button>
 
                   <button
@@ -403,10 +412,6 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
               <div className="mt-3">
                 <div className="max-h-96 overflow-y-auto whitespace-pre-line rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-xs leading-relaxed text-slate-800 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
                   {cleanPlainTextForCopy(copilotData.letter)}
-                </div>
-                {/* Clean Footer note without duplicate copy button */}
-                <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Naskah surat dinas resmi siap disalin ke Microsoft Word, Notepad, atau portal e-Klaim</span>
                 </div>
               </div>
             ) : (
