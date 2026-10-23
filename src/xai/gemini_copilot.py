@@ -140,7 +140,13 @@ def sanitize_claim_for_zero_pii(claim_data: Dict[str, Any]) -> Dict[str, Any]:
 
     raw_decision = str(clean_dict.get("audit_decision") or clean_dict.get("decision") or clean_dict.get("status") or "").strip().upper().replace(" ", "_")
     if raw_decision not in ("PENDING_CLARIFICATION", "REJECTED_UPCODING", "APPROVED"):
-        raw_decision = "REJECTED_UPCODING" if clean_dict.get("risk_category") == "HIGH_RISK" else "PENDING_CLARIFICATION"
+        raw_decision = (
+            "REJECTED_UPCODING"
+            if clean_dict.get("risk_category") == "HIGH_RISK"
+            else "APPROVED"
+            if clean_dict.get("risk_category") == "LOW_RISK"
+            else "PENDING_CLARIFICATION"
+        )
 
     safe_summary = {
         "claim_pseudonym": pseudo_id,
@@ -368,11 +374,12 @@ Formatkan telaah klinis ke dalam struktur teks bersih (plain text) tanpa format 
             "Hasilkan format surat dinas resmi dengan teks bersih (plain text) siap cetak dan siap salin ke Microsoft Word, Notepad, atau email dinas."
         )
 
-        perihal_text = (
-            f"Pemberitahuan Penetapan Koreksi Upcoding & Rekonsiliasi Tarif Klaim FKRTL atas Kunjungan No. {safe_ctx['claim_pseudonym']}"
-            if "REJECTED" in decision
-            else f"Konfirmasi dan Klarifikasi Kelengkapan Bukti Medis Klaim JKN-KIS atas Kunjungan No. {safe_ctx['claim_pseudonym']}"
-        )
+        if "REJECTED" in decision:
+            perihal_text = f"Pemberitahuan Penetapan Koreksi Upcoding & Rekonsiliasi Tarif Klaim FKRTL atas Kunjungan No. {safe_ctx['claim_pseudonym']}"
+        elif "APPROVED" in decision:
+            perihal_text = f"Pemberitahuan Persetujuan Pembayaran Klaim Rawat Inap (Fast-Track) atas Kunjungan No. {safe_ctx['claim_pseudonym']}"
+        else:
+            perihal_text = f"Konfirmasi dan Klarifikasi Kelengkapan Bukti Medis Klaim JKN-KIS atas Kunjungan No. {safe_ctx['claim_pseudonym']}"
 
         user_prompt = f"""
 Buat draf resmi Surat Resmi BPJS Kesehatan ke Rumah Sakit berdasarkan temuan data klaim berikut:
@@ -537,7 +544,18 @@ Kepatuhan Data: Zero-PII Standard (UU Perlindungan Data Pribadi No. 27 Tahun 202
 - 4. Level Keparahan Kasus (Severity): {radar.get('severity_level', sev):.1f}
 - 5. Pelanggaran Regulasi (Regulatory Rule): {radar.get('regulatory_violation', len(rules)):.1f}
 - Deviasi biaya yang signifikan di atas median peer group mengindikasikan potensi ketidaksesuaian input tindakan (over-billing) atau kesalahan penetapan kode tarif grup CBG.
+"""
 
+        is_low_risk = ctx.get("risk_category") == "LOW_RISK" or len(rules) == 0
+
+        if is_low_risk:
+            narrative += """
+5. Rekomendasi Tindak Lanjut SOP Verifikator BPJS Kesehatan
+1. Berkas klaim memenuhi seluruh kaidah koding Permenkes No. 26/2021 dan tidak terdeteksi indikasi kecurangan/anomali.
+2. Rekomendasi verifikator: Setujui klaim melalui jalur cepat (Fast-Track Approval) untuk percepatan pembayaran klaim ke FKRTL.
+"""
+        else:
+            narrative += """
 5. Rekomendasi Tindak Lanjut SOP Verifikator BPJS Kesehatan
 1. Lakukan Klarifikasi Berkas Rekam Medis (Pending Clarification) kepada Tim Casemix / DPJP FKRTL.
 2. Periksa Catatan Perkembangan Pasien Terintegrasi (CPPT), lembar instruksi dokter, dan hasil laboratorium/penunjang.
@@ -559,18 +577,19 @@ Kepatuhan Data: Zero-PII Standard (UU Perlindungan Data Pribadi No. 27 Tahun 202
         ref_no = f"B/{datetime.now().strftime('%Y%m%d')}/JAGA-KODE/KC-04"
 
         is_rejected = "REJECTED" in decision
-        subject = (
-            f"Pemberitahuan Penetapan Koreksi Upcoding & Rekonsiliasi Tarif Klaim FKRTL (Kunjungan: {cid})"
-            if is_rejected
-            else f"Konfirmasi dan Klarifikasi Kelengkapan Bukti Medis Klaim FKRTL (Kunjungan: {cid})"
-        )
-        status_label = "REJECTED (KOREKSI UPCODING)" if is_rejected else "PENDING CLARIFICATION (MENUNGGU BUKTI MEDIS)"
-
-        tindak_lanjut = (
-            "-> Tindak Lanjut Verifikasi: Klaim ditetapkan mengalami penyesuaian koreksi tarif (rekoding ke Severity Level I atau penolakan eskalasi biaya) karena dokumentasi komorbiditas tidak memenuhi kriteria penatalaksanaan aktif. Apabila pihak RS bermaksud mengajukan sanggahan, wajib menyertakan dokumen pembuktian sah."
-            if is_rejected
-            else "-> Tindak Lanjut Verifikasi: Proses penjaminan klaim ditunda sementara (pending clarification) sampai pihak FKRTL melengkapi dokumen pembuktian penatalaksanaan medis yang sah."
-        )
+        is_approved = "APPROVED" in decision
+        if is_rejected:
+            subject = f"Pemberitahuan Penetapan Koreksi Upcoding & Rekonsiliasi Tarif Klaim FKRTL (Kunjungan: {cid})"
+            status_label = "REJECTED (KOREKSI UPCODING)"
+            tindak_lanjut = "-> Tindak Lanjut Verifikasi: Klaim ditetapkan mengalami penyesuaian koreksi tarif (rekoding ke Severity Level I atau penolakan eskalasi biaya) karena dokumentasi komorbiditas tidak memenuhi kriteria penatalaksanaan aktif. Apabila pihak RS bermaksud mengajukan sanggahan, wajib menyertakan dokumen pembuktian sah."
+        elif is_approved:
+            subject = f"Pemberitahuan Persetujuan Pembayaran Klaim Rawat Inap (Fast-Track) atas Kunjungan No. {cid}"
+            status_label = "APPROVED (LOLOS VERIFIKASI / FAST-TRACK)"
+            tindak_lanjut = "-> Tindak Lanjut Verifikasi: Berkas klaim dinyatakan lolos verifikasi administrasi dan audit klinis (Fast-Track). Biaya pelayanan disetujui sesuai tarif standar INA-CBG tanpa catatan dispute."
+        else:
+            subject = f"Konfirmasi dan Klarifikasi Kelengkapan Bukti Medis Klaim FKRTL (Kunjungan: {cid})"
+            status_label = "PENDING CLARIFICATION (MENUNGGU BUKTI MEDIS)"
+            tindak_lanjut = "-> Tindak Lanjut Verifikasi: Proses penjaminan klaim ditunda sementara (pending clarification) sampai pihak FKRTL melengkapi dokumen pembuktian penatalaksanaan medis yang sah."
 
         letter = f"""KEMENTERIAN KESEHATAN REPUBLIK INDONESIA / BPJS KESEHATAN
 KANTOR CABANG UTAMA PENJAMINAN MANFAAT RUJUKAN

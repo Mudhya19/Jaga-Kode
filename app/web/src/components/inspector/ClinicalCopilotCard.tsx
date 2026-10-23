@@ -46,7 +46,11 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
 
   const effectiveDecision =
     auditDecision ||
-    (claim.risk_category === 'HIGH_RISK' ? 'REJECTED_UPCODING' : 'PENDING_CLARIFICATION');
+    (claim.risk_category === 'HIGH_RISK'
+      ? 'REJECTED_UPCODING'
+      : claim.risk_category === 'LOW_RISK'
+      ? 'APPROVED'
+      : 'PENDING_CLARIFICATION');
 
   const formattedDecision = formatNarrativeText(effectiveDecision);
 
@@ -54,6 +58,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
     effectiveDecision === 'REJECTED_UPCODING' || claim.risk_category === 'HIGH_RISK';
   const isMediumRisk =
     effectiveDecision === 'PENDING_CLARIFICATION' || claim.risk_category === 'MEDIUM_RISK';
+  const isLowRisk = !isHighRisk && !isMediumRisk;
 
   const letterTheme = isHighRisk
     ? {
@@ -233,10 +238,25 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
           <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             {/* Header: Title on Left, Action & Copy Buttons on Right ONLY when content exists */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-slate-100 pb-3 dark:border-slate-800">
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <FileText className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 sm:text-sm">
                   Telaah Narasi Klinis Permenkes No. 26/2021 & 16/2019
+                </span>
+                <span
+                  className={`rounded px-2 py-0.5 font-mono text-[10px] font-semibold border ${
+                    isHighRisk
+                      ? 'bg-red-500/15 text-red-700 dark:bg-red-500/20 dark:text-red-300 border-red-500/30'
+                      : isMediumRisk
+                      ? 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border-amber-500/30'
+                      : 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-500/30'
+                  }`}
+                >
+                  {isHighRisk
+                    ? 'Risiko Tinggi (Upcoding)'
+                    : isMediumRisk
+                    ? 'Risiko Sedang (Klarifikasi)'
+                    : 'Risiko Rendah (Fast-Track)'}
                 </span>
               </div>
 
@@ -334,12 +354,12 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <FileText className={`h-4 w-4 shrink-0 ${letterTheme.iconColor}`} />
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 sm:text-sm">
-                  Draf Surat Klarifikasi Faskes
+                  {isLowRisk ? 'Draf Surat Persetujuan (Fast-Track)' : 'Draf Surat Klarifikasi Faskes'}
                 </span>
                 <span className={`rounded px-2 py-0.5 font-mono text-[10px] font-semibold border ${letterTheme.badgeBg}`}>
-                  Status: {formattedDecision}
+                  Status: {isLowRisk ? 'Approved (Fast-Track)' : formattedDecision}
                 </span>
-                {disputeAmount > 0 && (
+                {disputeAmount > 0 && !isLowRisk && (
                   <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     Selisih: {formatRupiah(disputeAmount)}
                   </span>
@@ -411,14 +431,18 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                   <FileText className="h-6 w-6" />
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300 max-w-md">
-                  Draf surat klarifikasi belum dibuat untuk klaim{' '}
+                  {isLowRisk
+                    ? 'Draf surat persetujuan belum dibuat untuk klaim '
+                    : 'Draf surat klarifikasi belum dibuat untuk klaim '}
                   <span className={`font-mono font-bold ${letterTheme.textHighlight}`}>
                     {claim.claim_id}
                   </span>
                   .
                 </p>
                 <p className="text-[11px] text-slate-400 mt-1 mb-4">
-                  Format surat resmi dinas BPJS Kesehatan ke Direktur RS dengan rincian berkas pendukung.
+                  {isLowRisk
+                    ? 'Klaim berstatus risiko rendah. Format surat resmi dinas persetujuan klaim (Fast-Track) untuk arsip FKRTL.'
+                    : 'Format surat resmi dinas BPJS Kesehatan ke Direktur RS dengan rincian berkas pendukung.'}
                 </p>
                 <button
                   type="button"
@@ -431,7 +455,13 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                   ) : (
                     <FileText className="h-4 w-4" />
                   )}
-                  <span>{loadingLetter ? 'Menyusun Draf Surat...' : 'Buat Draf Surat'}</span>
+                  <span>
+                    {loadingLetter
+                      ? 'Menyusun Surat...'
+                      : isLowRisk
+                      ? 'Buat Surat Persetujuan'
+                      : 'Buat Draf Surat'}
+                  </span>
                 </button>
               </div>
             )}
