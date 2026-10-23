@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu } from 'lucide-react';
+import { Cpu, ArrowLeft } from 'lucide-react';
 import type { SingleClaimInput } from '../../types/jagaKode';
 
 interface CustomClaimFormProps {
@@ -10,6 +10,7 @@ interface CustomClaimFormProps {
   setSecondaryDiagText: React.Dispatch<React.SetStateAction<string>>;
   evaluatingClaim: boolean;
   onSubmit: (e: React.FormEvent) => void;
+  onBack?: () => void;
 }
 
 export const CustomClaimForm: React.FC<CustomClaimFormProps> = ({
@@ -20,6 +21,7 @@ export const CustomClaimForm: React.FC<CustomClaimFormProps> = ({
   setSecondaryDiagText,
   evaluatingClaim,
   onSubmit,
+  onBack,
 }) => {
   if (!show) return null;
 
@@ -229,6 +231,17 @@ export const CustomClaimForm: React.FC<CustomClaimFormProps> = ({
               placeholder="Contoh: N17.9, I50.9, A41.9"
               className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs dark:border-slate-700 dark:bg-slate-800"
             />
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+                title="Kembali ke 1-Click Live Demo Simulator"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>Kembali</span>
+              </button>
+            )}
             <button
               type="submit"
               disabled={evaluatingClaim}

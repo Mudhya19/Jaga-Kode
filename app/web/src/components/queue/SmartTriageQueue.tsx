@@ -54,29 +54,29 @@ export const SmartTriageQueue: React.FC<SmartTriageQueueProps> = ({
           </span>
         </div>
 
-        {/* Filter Tabs: Warna putih pada background asal, berubah sesuai status saat diklik/aktif */}
+        {/* Filter Tabs (Background awal putih bersih, berubah warna sesuai status saat diklik/aktif) */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {(
             [
               {
                 id: 'ALL',
                 label: `Semua (${kpiStats.total})`,
-                activeClass: 'bg-[#00529C] text-white border-[#00529C] shadow-xs dark:bg-sky-600 dark:border-sky-600',
+                activeClass: 'bg-[#00529C] text-white border border-[#00529C] shadow-xs dark:bg-sky-600 dark:border-sky-600',
               },
               {
                 id: 'HIGH_RISK',
                 label: `High Risk (${kpiStats.highCount})`,
-                activeClass: 'bg-rose-600 text-white border-rose-600 shadow-xs dark:bg-rose-600 dark:border-rose-600',
+                activeClass: 'bg-rose-600 text-white border border-rose-600 shadow-xs dark:bg-rose-600 dark:border-rose-600',
               },
               {
                 id: 'MEDIUM_RISK',
                 label: `Medium (${kpiStats.medCount})`,
-                activeClass: 'bg-amber-500 text-white border-amber-500 shadow-xs dark:bg-amber-600 dark:border-amber-600',
+                activeClass: 'bg-amber-500 text-white border border-amber-500 shadow-xs dark:bg-amber-600 dark:border-amber-600',
               },
               {
                 id: 'LOW_RISK',
                 label: `Fast-Track (${kpiStats.lowCount})`,
-                activeClass: 'bg-emerald-600 text-white border-emerald-600 shadow-xs dark:bg-emerald-600 dark:border-emerald-600',
+                activeClass: 'bg-emerald-600 text-white border border-emerald-600 shadow-xs dark:bg-emerald-600 dark:border-emerald-600',
               },
             ] as const
           ).map((tab) => {
@@ -86,10 +86,10 @@ export const SmartTriageQueue: React.FC<SmartTriageQueueProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setCategoryFilter(tab.id)}
-                className={`rounded-lg border px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
                   active
                     ? tab.activeClass
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 dark:hover:bg-slate-800/80'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 dark:hover:bg-slate-800'
                 }`}
               >
                 {tab.label}

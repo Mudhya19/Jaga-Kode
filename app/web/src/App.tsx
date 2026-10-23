@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, FlaskConical, Sliders } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FlaskConical, Sliders } from 'lucide-react';
 import { ApiKeyConfigBar } from './components/layout/ApiKeyConfigBar';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/common/Footer';
@@ -733,10 +733,14 @@ export default function App() {
               </div>
               <div>
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white sm:text-base">
-                  1-Click Live Demo Simulator (5 Skenario Uji Juri Healthkathon) & Custom Claim Evaluator
+                  {showCustomForm
+                    ? 'Parameter Input Klaim FKRTL (Custom Claim Evaluator)'
+                    : '1-Click Live Demo Simulator (5 Skenario Uji Juri Healthkathon) & Custom Claim Evaluator'}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Pilih salah satu skenario klinis di bawah ini untuk menguji deteksi anomali AI Guardrail secara instan.
+                  {showCustomForm
+                    ? 'Ubah variabel klinis dan rincian tarif klaim di bawah ini untuk menguji respons mesin analitik.'
+                    : 'Pilih salah satu skenario klinis di bawah ini untuk menguji deteksi anomali AI Guardrail secara instan.'}
                 </p>
               </div>
             </div>
@@ -746,26 +750,29 @@ export default function App() {
               onClick={() => setShowCustomForm((prev) => !prev)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer"
             >
-              <Sliders className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>
-                {showCustomForm
-                  ? 'Tutup Form Simulator Klaim Kustom'
-                  : 'Buka Form Simulator Klaim Kustom'}
-              </span>
               {showCustomForm ? (
-                <ChevronUp className="h-3.5 w-3.5" />
+                <>
+                  <ArrowLeft className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Kembali ke 1-Click Live Demo Simulator</span>
+                </>
               ) : (
-                <ChevronDown className="h-3.5 w-3.5" />
+                <>
+                  <Sliders className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Buka Form Simulator Klaim Kustom</span>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </>
               )}
             </button>
           </div>
 
-          {/* 5 Preset Scenario Cards */}
-          <PresetScenarioGrid
-            activePresetKey={activePresetKey}
-            evaluatingClaim={evaluatingClaim}
-            onSelectPreset={handleTriggerPresetScenario}
-          />
+          {/* 5 Preset Scenario Cards: Sembunyikan saat form parameter kustom dibuka */}
+          {!showCustomForm && (
+            <PresetScenarioGrid
+              activePresetKey={activePresetKey}
+              evaluatingClaim={evaluatingClaim}
+              onSelectPreset={handleTriggerPresetScenario}
+            />
+          )}
 
           {/* Batch Evaluation Summary Ribbon */}
           <BatchSummaryRibbon
@@ -773,7 +780,7 @@ export default function App() {
             onClose={() => setBatchSummary(null)}
           />
 
-          {/* Custom Claim Evaluator Form */}
+          {/* Custom Claim Evaluator Form: Tampil saat dibuka */}
           <CustomClaimForm
             show={showCustomForm}
             formInput={formInput}
@@ -782,6 +789,7 @@ export default function App() {
             setSecondaryDiagText={setSecondaryDiagText}
             evaluatingClaim={evaluatingClaim}
             onSubmit={handleEvaluateCustomClaim}
+            onBack={() => setShowCustomForm(false)}
           />
         </section>
 
