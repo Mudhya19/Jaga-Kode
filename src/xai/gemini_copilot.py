@@ -70,6 +70,32 @@ def scrub_pii_from_text(text: str) -> str:
     return s
 
 
+def strip_markdown_formatting(text: str) -> str:
+    """
+    Membersihkan formatting Markdown (**teks**, *teks*, # Judul, `kode`, dsb.)
+    menjadi teks polos dinas resmi yang bersih dan siap disalin langsung ke Word / Notepad / e-Klaim.
+    """
+    if not text:
+        return ""
+    # 1. Hapus header Markdown (# Header, ## Header, ### Header)
+    cleaned = re.sub(r"^(?:#{1,6}\s+)(.+)$", r"\1", text, flags=re.MULTILINE)
+    # 2. Standarkan garis horizontal (---, ***, ___)
+    cleaned = re.sub(r"^[ \t]*[-*_]{3,}[ \t]*$", r"--------------------------------------------------", cleaned, flags=re.MULTILINE)
+    # 3. Hapus bold/italic asterisks & underscores (**bold**, *italic*, __bold__, _italic_)
+    cleaned = re.sub(r"\*\*([^*]+)\*\*", r"\1", cleaned)
+    cleaned = re.sub(r"__([^_]+)__", r"\1", cleaned)
+    cleaned = re.sub(r"\*([^*\n]+)\*", r"\1", cleaned)
+    cleaned = re.sub(r"(?<!\w)_([^_\n]+)_(?!\w)", r"\1", cleaned)
+    # 4. Hapus inline code backticks (`kode` -> kode)
+    cleaned = re.sub(r"`([^`]+)`", r"\1", cleaned)
+    # 5. Standarkan bullet markdown (* item, + item) menjadi dash standar (- item)
+    cleaned = re.sub(r"^[ \t]*\*[ \t]+", r"- ", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^[ \t]*\+[ \t]+", r"- ", cleaned, flags=re.MULTILINE)
+    # 6. Bersihkan baris kosong berlebih
+    cleaned = re.sub(r"\n{3,}", r"\n\n", cleaned)
+    return cleaned.strip()
+
+
 def sanitize_claim_for_zero_pii(claim_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Menyaring data klaim agar sepenuhnya patuh pada prinsip Zero-PII (UU No. 27/2022).
@@ -250,27 +276,27 @@ class GeminiClinicalCopilot:
             "Tugas Anda adalah menyusun telaah klinis formal dan objektif atas klaim FKRTL yang terdeteksi memiliki potensi anomali. "
             "Rujukan utama: Permenkes No. 26/2021 (Petunjuk Teknis INA-CBG), Permenkes No. 16/2019 (Pencegahan Fraud), "
             "evaluasi 5 Aturan Guardrail Klinis, serta 5 Dimensi Radar Deviasi (LoS, Biaya, Komorbiditas, Severity, Regulasi). "
-            "Gunakan bahasa Indonesia baku kedokteran, sertakan pasal regulasi relevan, dan patuhi standar Zero-PII."
+            "Gunakan bahasa Indonesia baku kedokteran, sertakan pasal regulasi relevan, dan patuhi standar Zero-PII. "
+            "PENTING: Gunakan format TEKS POLOS RESMI (plain text) tanpa format Markdown (JANGAN gunakan tanda bintang asterisks **teks**, tanda pagar #, backtick `, atau tanda bintang *). "
+            "Gunakan penomoran rapi (1., 2., a., b., - ) agar langsung siap disalin ke lembar kerja Microsoft Word, Notepad, atau portal resmi e-Klaim tanpa karakter kotor markdown."
         )
 
         radar = safe_ctx.get("radar_5_axis_metrics", {})
         user_prompt = f"""
 Silakan lakukan telaah klinis mendalam terhadap data klaim rawat inap berikut:
-```json
 {claim_json_str}
-```
 
-Formatkan telaah klinis ke dalam struktur poin-poin berikut:
-1. **Ringkasan Triase Risiko**: Skor CPS ({safe_ctx.get('composite_risk_score', 0):.1f}/100), kategori risiko ({safe_ctx.get('risk_category')}), dan faktor pemicu dominan ({safe_ctx.get('primary_risk_driver')}).
-2. **Kesesuaian Diagnosis & Prosedur**: Evaluasi hubungan diagnosis primer ({safe_ctx.get('primary_diagnosis_icd10')}) vs diagnosis sekunder ({', '.join(safe_ctx.get('secondary_diagnoses_icd10', [])) or 'Nihil'}) serta kaidah koding ICD-10 Vol 2.
-3. **Analisis Tingkat Keparahan (Severity Level {safe_ctx.get('severity_level')}) & INA-CBG ({safe_ctx.get('ina_cbg_code')})**: Analisis apakah eskalasi severity didukung bukti klinis memadai (evaluasi Ghost Comorbidity atau Severity Jump).
-4. **Telaah 5-Sumbu Radar Deviasi & Peer Group**:
+Formatkan telaah klinis ke dalam struktur teks polos resmi (tanpa tanda markdown seperti asterisks atau pagar) dengan urutan berikut:
+1. Ringkasan Triase Risiko: Skor CPS ({safe_ctx.get('composite_risk_score', 0):.1f}/100), kategori risiko ({safe_ctx.get('risk_category')}), dan faktor pemicu dominan ({safe_ctx.get('primary_risk_driver')}).
+2. Kesesuaian Diagnosis & Prosedur: Evaluasi hubungan diagnosis primer ({safe_ctx.get('primary_diagnosis_icd10')}) vs diagnosis sekunder ({', '.join(safe_ctx.get('secondary_diagnoses_icd10', [])) or 'Nihil'}) serta kaidah koding ICD-10 Vol 2.
+3. Analisis Tingkat Keparahan (Severity Level {safe_ctx.get('severity_level')}) & INA-CBG ({safe_ctx.get('ina_cbg_code')}): Analisis apakah eskalasi severity didukung bukti klinis memadai (evaluasi Ghost Comorbidity atau Severity Jump).
+4. Telaah 5-Sumbu Radar Deviasi & Peer Group:
    - Deviasi Hari Rawat (LoS): {radar.get('los_deviation', 0.0):.2f} (Z-score: {safe_ctx.get('los_peer_zscore', 0.0):.2f} SD)
    - Deviasi Biaya Tagih: {radar.get('cost_deviation', 1.0):.2f}x median faskes sebaya
    - Intensitas Komorbiditas: {radar.get('comorbidity_intensity', 0.0):.2f}
    - Level Keparahan: {radar.get('severity_level', 1.0):.1f}
    - Skor Pelanggaran Regulasi: {radar.get('regulatory_violation', 0.0):.1f}
-5. **Rekomendasi Tindak Lanjut Verifikator**: Langkah verifikasi berkas rekam medis yang wajib diperiksa sebelum persetujuan klaim.
+5. Rekomendasi Tindak Lanjut Verifikator: Langkah verifikasi berkas rekam medis yang wajib diperiksa sebelum persetujuan klaim.
 """
 
         generated_text, source_mode, model_used = self._call_gemini_api(
@@ -281,6 +307,8 @@ Formatkan telaah klinis ke dalam struktur poin-poin berikut:
             generated_text = self._build_deterministic_clinical_narrative(safe_ctx)
             source_mode = "rule_based_fallback"
             model_used = "jaga_kode_deterministic_v2"
+
+        generated_text = strip_markdown_formatting(generated_text)
 
         return {
             "claim_id": safe_ctx["claim_pseudonym"],
@@ -319,7 +347,9 @@ Formatkan telaah klinis ke dalam struktur poin-poin berikut:
             "Tugas Anda adalah membuat draf resmi Surat Klarifikasi dan Konfirmasi Klaim FKRTL yang ditujukan kepada Direktur Rumah Sakit. "
             "Surat harus formal, santun namun tegas secara regulasi, mengutip Permenkes No. 26/2021 dan Permenkes No. 16/2019, "
             "serta merinci dokumen pembuktian medis yang wajib diserahkan pihak RS dalam batas waktu yang ditentukan. "
-            f"Status verifikasi saat ini adalah: {decision}."
+            f"Status verifikasi saat ini adalah: {decision}. "
+            "PENTING: Tuliskan surat dalam format TEKS DINAS RESMI (plain text) tanpa format Markdown (JANGAN gunakan tanda bintang asterisks **teks**, tanda pagar #, backtick `, atau tanda bintang *). "
+            "Kop surat, nomor, perihal, dan perincian harus bersih dan siap disalin langsung ke lembar kerja Microsoft Word, Notepad, atau portal resmi e-Klaim tanpa karakter kotor markdown."
         )
 
         perihal_text = (
@@ -330,21 +360,20 @@ Formatkan telaah klinis ke dalam struktur poin-poin berikut:
 
         user_prompt = f"""
 Buat draf resmi Surat Resmi BPJS Kesehatan ke Rumah Sakit berdasarkan temuan data klaim berikut:
-```json
 {claim_json_str}
-```
+
 Status Keputusan Verifikasi: {decision}
 Nominal estimasi selisih koreksi / potensi dispute: Rp {dispute_amount:,.2f}
 
-Ketentuan struktur surat resmi:
-- **Kop / Nomor Surat**: [Format Nomor Registrasi Resmi BPJS Kesehatan]
-- **Tujuan**: Yth. Direktur Rumah Sakit / FKRTL & Tim Casemix
-- **Perihal**: {perihal_text}
-- **Dasar Hukum**: Permenkes No. 26/2021 Pasal 3 & 4 (Kaidah Koding INA-CBG) dan Permenkes No. 16/2019 (Pencegahan Kecurangan Klaim).
-- **Rincian Temuan Anomali & Tindak Lanjut ({decision})**: Uraikan indikasi ketidaksesuaian koding (eskalasi severity, komorbiditas tanpa penatalaksanaan terbukti, atau perpanjangan hari rawat) serta keputusan koreksi tarif atau penundaan klaim.
-- **Permintaan Berkas Pembuktian**: Resume Medis terverifikasi DPJP, Catatan Perkembangan Pasien Terintegrasi (CPPT), Hasil Pemeriksaan Penunjang (Lab/Radiologi), dan Rincian Biaya Riil Farmasi.
-- **Tenggat Waktu Klarifikasi**: 3 (tiga) hari kerja sejak surat ini diterima.
-- **Penutup & Tanda Tangan**: Tim Verifikasi Klaim & Anti-Fraud BPJS Kesehatan Kantor Cabang.
+Ketentuan struktur teks surat resmi dinas (teks polos, tanpa sintaks markdown seperti asterisks atau tanda pagar):
+- Kop / Nomor Surat: [Format Nomor Registrasi Resmi BPJS Kesehatan]
+- Tujuan: Yth. Direktur Rumah Sakit / FKRTL & Tim Casemix
+- Perihal: {perihal_text}
+- Dasar Hukum: Permenkes No. 26/2021 Pasal 3 & 4 (Kaidah Koding INA-CBG) dan Permenkes No. 16/2019 (Pencegahan Kecurangan Klaim).
+- Rincian Temuan Anomali & Tindak Lanjut ({decision}): Uraikan indikasi ketidaksesuaian koding (eskalasi severity, komorbiditas tanpa penatalaksanaan terbukti, atau perpanjangan hari rawat) serta keputusan koreksi tarif atau penundaan klaim.
+- Permintaan Berkas Pembuktian: Resume Medis terverifikasi DPJP, Catatan Perkembangan Pasien Terintegrasi (CPPT), Hasil Pemeriksaan Penunjang (Lab/Radiologi), dan Rincian Biaya Riil Farmasi.
+- Tenggat Waktu Klarifikasi: 3 (tiga) hari kerja sejak surat ini diterima.
+- Penutup & Tanda Tangan: Tim Verifikasi Klaim & Anti-Fraud BPJS Kesehatan Kantor Cabang.
 """
 
         generated_text, source_mode, model_used = self._call_gemini_api(
@@ -355,6 +384,8 @@ Ketentuan struktur surat resmi:
             generated_text = self._build_deterministic_inquiry_letter(safe_ctx, dispute_amount)
             source_mode = "rule_based_fallback"
             model_used = "jaga_kode_deterministic_v2"
+
+        generated_text = strip_markdown_formatting(generated_text)
 
         return {
             "claim_id": safe_ctx["claim_pseudonym"],
@@ -421,6 +452,8 @@ Jawab dengan lugas, informatif, dan berikan rekomendasi aksi konkret bagi verifi
             source_mode = "rule_based_fallback"
             model_used = "jaga_kode_deterministic_v2"
 
+        generated_text = strip_markdown_formatting(generated_text)
+
         return {
             "claim_id": safe_ctx["claim_pseudonym"],
             "reply": generated_text,
@@ -446,54 +479,54 @@ Jawab dengan lugas, informatif, dan berikan rekomendasi aksi konkret bagi verifi
         rules_text = ", ".join(rules) if rules else "Tidak ada pelanggaran aturan mutlak terpicu"
         radar = ctx.get("radar_5_axis_metrics", {})
 
-        narrative = f"""### TELAAH KLINIS FORMAL VERIFIKASI KLAIM FKRTL
-**Nomor Kunjungan / Claim ID**: `{cid}`  
-**Standar Regulasi**: Permenkes RI No. 26 Tahun 2021 & Permenkes RI No. 16 Tahun 2019  
-**Kepatuhan Data**: Zero-PII Standard (UU Perlindungan Data Pribadi No. 27 Tahun 2022)
+        narrative = f"""TELAAH KLINIS FORMAL VERIFIKASI KLAIM FKRTL
+Nomor Kunjungan / Claim ID: {cid}
+Standar Regulasi: Permenkes RI No. 26 Tahun 2021 & Permenkes RI No. 16 Tahun 2019
+Kepatuhan Data: Zero-PII Standard (UU Perlindungan Data Pribadi No. 27 Tahun 2022)
 
----
+--------------------------------------------------
 
-#### 1. Ringkasan Triase Risiko & Skor Komposit
-- **Composite Priority Score (CPS)**: {ctx.get('composite_risk_score', 0):.1f} / 100
-- **Kategori Risiko**: `{ctx.get('risk_category', 'UNKNOWN')}`
-- **Faktor Risiko Utama**: `{ctx.get('primary_risk_driver', '-')}`
-- **Aturan Guardrail Terpicu**: {rules_text}
+1. Ringkasan Triase Risiko & Skor Komposit
+- Composite Priority Score (CPS): {ctx.get('composite_risk_score', 0):.1f} / 100
+- Kategori Risiko: {ctx.get('risk_category', 'UNKNOWN')}
+- Faktor Risiko Utama: {ctx.get('primary_risk_driver', '-')}
+- Aturan Guardrail Terpicu: {rules_text}
 
-#### 2. Evaluasi Koherensi Klinis & Kode Diagnosis
-- **Diagnosis Utama (FKL17A/18)**: `{dx_prim}`
-- **Diagnosis Sekunder yang Ditagihkan**: `{dx_sec}`
+2. Evaluasi Koherensi Klinis & Kode Diagnosis
+- Diagnosis Utama (FKL17A/18): {dx_prim}
+- Diagnosis Sekunder yang Ditagihkan: {dx_sec}
 - Berdasarkan Kaidah Koding ICD-10 Volume 2 dan Permenkes No. 26/2021, diagnosis sekunder hanya dapat diklaimkan apabila menimbulkan konsekuensi terapeutik nyata, pemeriksaan diagnostik lanjutan, atau peningkatan lama rawat inap selama masa perawatan.
 
-#### 3. Analisis Tingkat Keparahan (Severity Level {sev}) & Tarif INA-CBG
-- **Kode INA-CBG**: `{cbg}` (Tingkat Keparahan: Level {sev})
-- **Lama Rawat Inap (LoS)**: {los} hari
+3. Analisis Tingkat Keparahan (Severity Level {sev}) & Tarif INA-CBG
+- Kode INA-CBG: {cbg} (Tingkat Keparahan: Level {sev})
+- Lama Rawat Inap (LoS): {los} hari
 """
 
         if sev >= 2 and los <= 1:
             narrative += (
-                "- **Indikasi Ghost Comorbidity**: Klaim diajukan dengan Severity Level tinggi namun durasi rawat sangat singkat (≤ 1 hari). "
+                "- Indikasi Ghost Comorbidity: Klaim diajukan dengan Severity Level tinggi namun durasi rawat sangat singkat (<= 1 hari). "
                 "Secara kaidah klinis, kondisi komplikasi berat memerlukan pemantauan organ vital intensif dan stabilisasi hemodinamik yang memadai.\n"
             )
         if "RULE_SEVERITY_JUMP" in rules:
             narrative += (
-                "- **Indikasi Severity Jump**: Terdeteksi lonjakan tarif ke Level III tanpa dokumentasi komorbiditas mayor terbukti pada resume medis.\n"
+                "- Indikasi Severity Jump: Terdeteksi lonjakan tarif ke Level III tanpa dokumentasi komorbiditas mayor terbukti pada resume medis.\n"
             )
 
         narrative += f"""
-#### 4. Telaah 5-Sumbu Radar Deviasi terhadap Kelompok Faskes Sebaya (Peer Group)
-- **1. Deviasi Hari Rawat (LoS Deviation)**: `{radar.get('los_deviation', los_z):+.2f}` (Z-score: {los_z:+.2f} SD)
-- **2. Deviasi Biaya Tagih (Cost Deviation)**: `{radar.get('cost_deviation', cost_ratio):.2f}x` vs median peer group
-- **3. Intensitas Komorbiditas (Comorbidity)**: `{radar.get('comorbidity_intensity', 0):.2f}`
-- **4. Level Keparahan Kasus (Severity)**: `{radar.get('severity_level', sev):.1f}`
-- **5. Pelanggaran Regulasi (Regulatory Rule)**: `{radar.get('regulatory_violation', len(rules)):.1f}`
-- Deviasi biaya yang signifikan di atas median peer group mengindikasikan potensi ketidaksesuaian input tindakan (*over-billing*) atau kesalahan penetapan kode tarif grup CBG.
+4. Telaah 5-Sumbu Radar Deviasi terhadap Kelompok Faskes Sebaya (Peer Group)
+- 1. Deviasi Hari Rawat (LoS Deviation): {radar.get('los_deviation', los_z):+.2f} (Z-score: {los_z:+.2f} SD)
+- 2. Deviasi Biaya Tagih (Cost Deviation): {radar.get('cost_deviation', cost_ratio):.2f}x vs median peer group
+- 3. Intensitas Komorbiditas (Comorbidity): {radar.get('comorbidity_intensity', 0):.2f}
+- 4. Level Keparahan Kasus (Severity): {radar.get('severity_level', sev):.1f}
+- 5. Pelanggaran Regulasi (Regulatory Rule): {radar.get('regulatory_violation', len(rules)):.1f}
+- Deviasi biaya yang signifikan di atas median peer group mengindikasikan potensi ketidaksesuaian input tindakan (over-billing) atau kesalahan penetapan kode tarif grup CBG.
 
-#### 5. Rekomendasi Tindak Lanjut SOP Verifikator BPJS Kesehatan
-1. **Lakukan Klarifikasi Berkas Rekam Medis (Pending Clarification)** kepada Tim Casemix / DPJP FKRTL.
+5. Rekomendasi Tindak Lanjut SOP Verifikator BPJS Kesehatan
+1. Lakukan Klarifikasi Berkas Rekam Medis (Pending Clarification) kepada Tim Casemix / DPJP FKRTL.
 2. Periksa Catatan Perkembangan Pasien Terintegrasi (CPPT), lembar instruksi dokter, dan hasil laboratorium/penunjang.
 3. Apabila komorbiditas tidak memenuhi kriteria penatalaksanaan aktif, sesuaikan kode INA-CBG ke tingkat keparahan yang sesuai (Severity Level I).
 """
-        return narrative.strip()
+        return strip_markdown_formatting(narrative)
 
     def _build_deterministic_inquiry_letter(self, ctx: Dict[str, Any], dispute_amount: float) -> str:
         """Fallback draf surat resmi jika koneksi Gemini tidak tersedia atau kuota habis."""
@@ -571,7 +604,7 @@ BPJS KESEHATAN KANTOR CABANG
 Tim Verifikasi Klaim & Pencegahan Kecurangan JKN
 (Ditandatangani secara elektronik sesuai UU ITE No. 11/2008 & UU PDP No. 27/2022)
 """
-        return letter.strip()
+        return strip_markdown_formatting(letter)
 
     def _build_deterministic_chat_response(self, ctx: Dict[str, Any], query: str) -> str:
         """Fallback jawaban chat interaktif jika offline atau kuota habis."""

@@ -47,3 +47,29 @@ export function formatNarrativeText(text: string | undefined | null): string {
     .replace(/\bREJECTED_UPCODING\b/g, 'Rejected Upcoding')
     .replace(/\bPROFIL_KLAIM_WAJAR\b/g, 'Profil Klaim Wajar');
 }
+
+/**
+ * Membersihkan sintaks Markdown (**teks**, *teks*, # Judul, `kode`, dll.)
+ * Menghasilkan teks polos resmi yang langsung siap disalin ke Microsoft Word / Notepad / e-Klaim
+ */
+export function stripMarkdown(text: string | undefined | null): string {
+  if (!text) return '';
+  return text
+    // Hapus header Markdown (# Header, ## Header, ### Header)
+    .replace(/^(?:#{1,6}\s+)(.+)$/gm, '$1')
+    // Standarkan garis horizontal pembatas (---, ***, ___)
+    .replace(/^[ \t]*[-*_]{3,}[ \t]*$/gm, '--------------------------------------------------')
+    // Hapus format bold/italic (**teks**, *teks*, __teks__, _teks_)
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/(?<!\w)_([^_\n]+)_(?!\w)/g, '$1')
+    // Hapus inline backticks (`kode` -> kode)
+    .replace(/`([^`]+)`/g, '$1')
+    // Standarkan bullet markdown (* item, + item) menjadi dash standar (- item)
+    .replace(/^[ \t]*\*[ \t]+/gm, '- ')
+    .replace(/^[ \t]*\+[ \t]+/gm, '- ')
+    // Bersihkan spasi kosong ganda berlebih
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

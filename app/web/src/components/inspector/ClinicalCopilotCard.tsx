@@ -14,7 +14,7 @@ import type {
   CopilotExplainResponse,
   VerifierDecision,
 } from '../../types/jagaKode';
-import { formatNarrativeText, formatRupiah } from '../../utils/formatters';
+import { formatNarrativeText, formatRupiah, stripMarkdown } from '../../utils/formatters';
 
 interface ClinicalCopilotCardProps {
   claim: ClaimEvaluationResponse;
@@ -123,7 +123,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
   // Copy Narrative handler
   const handleCopyNarrative = () => {
     if (!copilotData?.narrative) return;
-    navigator.clipboard.writeText(copilotData.narrative);
+    navigator.clipboard.writeText(stripMarkdown(copilotData.narrative));
     setCopiedNarrative(true);
     setTimeout(() => setCopiedNarrative(false), 2200);
   };
@@ -131,7 +131,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
   // Copy Letter handler
   const handleCopyLetter = () => {
     if (!copilotData?.letter) return;
-    navigator.clipboard.writeText(copilotData.letter);
+    navigator.clipboard.writeText(stripMarkdown(copilotData.letter));
     setCopiedLetter(true);
     setTimeout(() => setCopiedLetter(false), 2200);
   };
@@ -258,7 +258,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
               </div>
             ) : copilotData?.narrative ? (
               <div className="mt-3 max-h-96 overflow-y-auto whitespace-pre-line rounded-lg bg-slate-50 p-3.5 font-sans text-xs leading-relaxed text-slate-800 dark:bg-slate-950/60 dark:text-slate-200">
-                {copilotData.narrative}
+                {stripMarkdown(copilotData.narrative)}
               </div>
             ) : (
               /* Single Centralized Call-to-Action (No double button!) */
@@ -365,7 +365,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
             ) : copilotData?.letter ? (
               <div className="mt-3">
                 <div className="max-h-96 overflow-y-auto whitespace-pre-line rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-xs leading-relaxed text-slate-800 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-                  {copilotData.letter}
+                  {stripMarkdown(copilotData.letter)}
                 </div>
                 {/* Clean Footer note without duplicate copy button */}
                 <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500">
