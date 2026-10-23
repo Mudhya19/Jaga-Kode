@@ -60,32 +60,19 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
     effectiveDecision === 'PENDING_CLARIFICATION' || claim.risk_category === 'MEDIUM_RISK';
   const isLowRisk = !isHighRisk && !isMediumRisk;
 
-  const letterTheme = isHighRisk
-    ? {
-        badgeBg: 'bg-red-500/15 text-red-700 dark:bg-red-500/20 dark:text-red-300 border-red-500/30',
-        textHighlight: 'text-red-600 dark:text-red-400',
-        buttonBg: 'bg-rose-600 hover:bg-rose-700',
-        iconBg: 'bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400',
-        activeTab: 'text-rose-700 dark:text-rose-400',
-        iconColor: 'text-red-600 dark:text-red-400',
-      }
+  // Status badge styling (dynamic based on risk)
+  const statusBadgeClass = isHighRisk
+    ? 'bg-red-500/15 text-red-700 dark:bg-red-500/20 dark:text-red-300 border-red-500/30'
     : isMediumRisk
-    ? {
-        badgeBg: 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border-amber-500/30',
-        textHighlight: 'text-amber-600 dark:text-amber-400',
-        buttonBg: 'bg-amber-600 hover:bg-amber-700',
-        iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400',
-        activeTab: 'text-amber-700 dark:text-amber-400',
-        iconColor: 'text-amber-600 dark:text-amber-400',
-      }
-    : {
-        badgeBg: 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-500/30',
-        textHighlight: 'text-emerald-600 dark:text-emerald-400',
-        buttonBg: 'bg-emerald-600 hover:bg-emerald-700',
-        iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400',
-        activeTab: 'text-emerald-700 dark:text-emerald-400',
-        iconColor: 'text-emerald-600 dark:text-emerald-400',
-      };
+    ? 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border-amber-500/30'
+    : 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-500/30';
+
+  // SEP / Claim ID text highlight (dynamic based on risk)
+  const sepColorClass = isHighRisk
+    ? 'text-red-600 dark:text-red-400'
+    : isMediumRisk
+    ? 'text-amber-600 dark:text-amber-400'
+    : 'text-emerald-600 dark:text-emerald-400';
 
   const getEnrichedClaim = useCallback(() => {
     return {
@@ -215,7 +202,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
             onClick={() => setActiveTab('letter')}
             className={`rounded-md px-3.5 py-1.5 transition-all cursor-pointer ${
               activeTab === 'letter'
-                ? `bg-white font-bold ${letterTheme.activeTab} shadow-xs dark:bg-slate-900`
+                ? 'bg-white font-bold text-emerald-700 shadow-xs dark:bg-slate-900 dark:text-emerald-400'
                 : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
             }`}
           >
@@ -260,27 +247,25 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                 </span>
               </div>
 
-              {/* Action & Copy buttons appear here ONLY when narrative exists (No duplicate in empty state) */}
+              {/* Header Actions: Refresh & Copy buttons (Visible when narrative exists) */}
               {copilotData?.narrative && (
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <button
                     type="button"
                     onClick={handleGenerateNarrative}
                     disabled={loadingNarrative}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer disabled:opacity-50"
+                    title="Muat ulang telaah narasi klinis"
                   >
-                    {loadingNarrative ? (
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3.5 w-3.5" />
-                    )}
-                    <span>{loadingNarrative ? 'Menganalisis...' : 'Perbarui Telaah'}</span>
+                    <RefreshCw className={`h-3.5 w-3.5 ${loadingNarrative ? 'animate-spin text-indigo-600' : ''}`} />
+                    <span>{loadingNarrative ? 'Memperbarui...' : 'Refresh'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleCopyNarrative}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+                    title="Salin teks telaah klinis"
                   >
                     {copiedNarrative ? (
                       <>
@@ -302,10 +287,10 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <RefreshCw className="h-6 w-6 animate-spin text-indigo-600" />
                 <p className="mt-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Menganalisis kode ICD-10, aturan INA-CBG, dan metrik deviasi radar 5-sumbu...
+                  Sedang menganalisis kesesuaian klinis dengan regulasi INA-CBG...
                 </p>
                 <p className="text-[11px] text-slate-400">
-                  Didukung penalaran regulasi INA-CBG dengan kepatuhan sanitasi Zero-PII
+                  Memverifikasi kaidah koding diagnosis utama, komorbiditas, dan deviasi biaya kelompok sejenis
                 </p>
               </div>
             ) : copilotData?.narrative ? (
@@ -313,20 +298,20 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                 {cleanPlainTextForCopy(copilotData.narrative)}
               </div>
             ) : (
-              /* Single Centralized Call-to-Action (No double button!) */
+              /* Single Centralized Call-to-Action in Empty State */
               <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 mb-3 shadow-xs">
                   <Sparkles className="h-6 w-6" />
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300 max-w-md">
-                  Belum ada telaah narasi klinis untuk klaim{' '}
-                  <span className={`font-mono font-bold ${letterTheme.textHighlight}`}>
+                  Belum ada telaah narasi klinis untuk berkas klaim{' '}
+                  <span className={`font-mono font-bold ${sepColorClass}`}>
                     {claim.claim_id}
                   </span>
                   .
                 </p>
                 <p className="text-[11px] text-slate-400 mt-1 mb-4">
-                  Analisis otomatis kode ICD-10, aturan INA-CBG, dan metrik deviasi radar 5-sumbu.
+                  Pemeriksaan kesesuaian diagnosis, prosedur tindakan, dan indikator kepatuhan Permenkes No. 26/2021 & 16/2019.
                 </p>
                 <button
                   type="button"
@@ -339,7 +324,7 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
-                  <span>{loadingNarrative ? 'Menganalisis Klinis AI...' : 'Susun Telaah Klinis'}</span>
+                  <span>{loadingNarrative ? 'Sedang Menganalisis...' : 'Susun Telaah Klinis'}</span>
                 </button>
               </div>
             )}
@@ -349,14 +334,16 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
         {/* TAB 2: Hospital Inquiry Letter Draft */}
         {activeTab === 'letter' && (
           <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            {/* Header: Title & Status on Left, Action & Copy Buttons on Right ONLY when content exists */}
+            {/* Header: Title & Status on Left, Refresh & Copy Buttons on Right ONLY when content exists */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-slate-100 pb-3 dark:border-slate-800">
               <div className="flex flex-wrap items-center gap-2 min-w-0">
-                <FileText className={`h-4 w-4 shrink-0 ${letterTheme.iconColor}`} />
+                {/* Logo draf hijau zamrud statis */}
+                <FileText className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 sm:text-sm">
                   {isLowRisk ? 'Draf Surat Persetujuan (Fast-Track)' : 'Draf Surat Klarifikasi Faskes'}
                 </span>
-                <span className={`rounded px-2 py-0.5 font-mono text-[10px] font-semibold border ${letterTheme.badgeBg}`}>
+                {/* Status Badge dinamis sesuai risiko */}
+                <span className={`rounded px-2 py-0.5 font-mono text-[10px] font-semibold border ${statusBadgeClass}`}>
                   Status: {isLowRisk ? 'Approved (Fast-Track)' : formattedDecision}
                 </span>
                 {disputeAmount > 0 && !isLowRisk && (
@@ -366,27 +353,25 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                 )}
               </div>
 
-              {/* Action & Single Copy button appear here ONLY when letter exists (No duplicate in empty state) */}
+              {/* Header Actions: Refresh & Copy buttons (Visible when letter exists) */}
               {copilotData?.letter && (
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <button
                     type="button"
                     onClick={handleGenerateLetter}
                     disabled={loadingLetter}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:opacity-90 cursor-pointer disabled:opacity-50 ${letterTheme.buttonBg}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer disabled:opacity-50"
+                    title="Muat ulang draf surat korespondensi"
                   >
-                    {loadingLetter ? (
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <FileText className="h-3.5 w-3.5" />
-                    )}
-                    <span>{loadingLetter ? 'Menyusun...' : 'Perbarui Draf Surat'}</span>
+                    <RefreshCw className={`h-3.5 w-3.5 ${loadingLetter ? 'animate-spin text-emerald-600' : ''}`} />
+                    <span>{loadingLetter ? 'Menyusun...' : 'Refresh'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleCopyLetter}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+                    title="Salin teks surat resmi"
                   >
                     {copiedLetter ? (
                       <>
@@ -406,12 +391,12 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
 
             {loadingLetter ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <RefreshCw className={`h-6 w-6 animate-spin ${letterTheme.iconColor}`} />
+                <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
                 <p className="mt-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Menyusun draf surat resmi korespondensi BPJS Kesehatan ke Direktur RS...
+                  Sedang menyusun naskah dinas resmi untuk Rumah Sakit...
                 </p>
                 <p className="text-[11px] text-slate-400">
-                  Memasukkan dasar hukum Permenkes No. 26/2021 & daftar bukti rekam medis
+                  Memasukkan dasar hukum Permenkes No. 26/2021 dan rincian berkas rekam medis yang diperlukan
                 </p>
               </div>
             ) : copilotData?.letter ? (
@@ -421,34 +406,36 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                 </div>
                 {/* Clean Footer note without duplicate copy button */}
                 <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Format resmi siap cetak / ekspor ke portal e-Klaim Faskes</span>
+                  <span>Naskah surat dinas resmi siap disalin ke Microsoft Word, Notepad, atau portal e-Klaim</span>
                 </div>
               </div>
             ) : (
-              /* Single Centralized Call-to-Action (No double button!) */
+              /* Single Centralized Call-to-Action in Empty State */
               <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl mb-3 shadow-xs ${letterTheme.iconBg}`}>
+                {/* Logo container hijau zamrud statis */}
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 mb-3 shadow-xs">
                   <FileText className="h-6 w-6" />
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300 max-w-md">
-                  {isLowRisk
-                    ? 'Draf surat persetujuan belum dibuat untuk klaim '
-                    : 'Draf surat klarifikasi belum dibuat untuk klaim '}
-                  <span className={`font-mono font-bold ${letterTheme.textHighlight}`}>
+                  Belum ada draf surat korespondensi untuk berkas klaim{' '}
+                  <span className={`font-mono font-bold ${sepColorClass}`}>
                     {claim.claim_id}
                   </span>
                   .
                 </p>
                 <p className="text-[11px] text-slate-400 mt-1 mb-4">
                   {isLowRisk
-                    ? 'Klaim berstatus risiko rendah. Format surat resmi dinas persetujuan klaim (Fast-Track) untuk arsip FKRTL.'
-                    : 'Format surat resmi dinas BPJS Kesehatan ke Direktur RS dengan rincian berkas pendukung.'}
+                    ? 'Klaim memenuhi ketentuan persetujuan cepat (Fast-Track). Surat penetapan persetujuan siap diterbitkan.'
+                    : isHighRisk
+                    ? 'Klaim terindikasi ketidaksesuaian koding atau upcoding. Surat resmi penetapan koreksi tarif dan konfirmasi ke pihak Rumah Sakit.'
+                    : 'Klaim memerlukan konfirmasi kelengkapan berkas medis dan klarifikasi ke pihak Rumah Sakit.'}
                 </p>
+                {/* Button draf hijau zamrud statis */}
                 <button
                   type="button"
                   onClick={handleGenerateLetter}
                   disabled={loadingLetter}
-                  className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:opacity-90 cursor-pointer disabled:opacity-50 transition-all hover:scale-[1.02] ${letterTheme.buttonBg}`}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 cursor-pointer disabled:opacity-50 transition-all hover:scale-[1.02]"
                 >
                   {loadingLetter ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
@@ -457,9 +444,11 @@ export const ClinicalCopilotCard: React.FC<ClinicalCopilotCardProps> = ({
                   )}
                   <span>
                     {loadingLetter
-                      ? 'Menyusun Surat...'
+                      ? 'Sedang Menyusun Surat...'
                       : isLowRisk
                       ? 'Buat Surat Persetujuan'
+                      : isHighRisk
+                      ? 'Buat Surat Koreksi'
                       : 'Buat Draf Surat'}
                   </span>
                 </button>
