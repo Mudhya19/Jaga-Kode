@@ -83,7 +83,7 @@ const PRESET_SCENARIOS: PresetScenarioMeta[] = [
     key: 'clean_normal',
     title: '1. Klaim Wajar (Normal)',
     subtitle: 'Hipertensi I10 • Sev I • LoS 3 Hari',
-    badge: 'LOW_RISK',
+    badge: 'LOW RISK',
     expectedTier: 'LOW_RISK',
     description: 'Klaim proporsional sesuai median Peer Group RS Tipe C. Lolos Fast-Track otomatis.',
   },
@@ -91,7 +91,7 @@ const PRESET_SCENARIOS: PresetScenarioMeta[] = [
     key: 'ghost_comorbidity',
     title: '2. Ghost Comorbidity',
     subtitle: 'I10 + N17.9, I50.9, A41.9 • LoS 1 Hr Sehat',
-    badge: 'HIGH_RISK',
+    badge: 'HIGH RISK',
     expectedTier: 'HIGH_RISK',
     description:
       'Klaim Severity III dengan gagal ginjal akut, gagal jantung & sepsis namun rawat inap 1 hari pulang sehat.',
@@ -100,7 +100,7 @@ const PRESET_SCENARIOS: PresetScenarioMeta[] = [
     key: 'severity_jump',
     title: '3. Severity Escalation',
     subtitle: 'Diabetes E11 • Sev III Tanpa MCC • 2.9x Tarif',
-    badge: 'HIGH_RISK',
+    badge: 'HIGH RISK',
     expectedTier: 'HIGH_RISK',
     description:
       'Lonjakan klaim ke Severity Level III dengan biaya Rp 14,8 Jt tanpa komorbiditas mayor yang memadai.',
@@ -109,7 +109,7 @@ const PRESET_SCENARIOS: PresetScenarioMeta[] = [
     key: 'los_inflation',
     title: '4. LoS Inflation',
     subtitle: 'Pneumonia J18 • Rawat 15 Hari (Z > +3 SD)',
-    badge: 'HIGH_RISK',
+    badge: 'HIGH RISK',
     expectedTier: 'HIGH_RISK',
     description:
       'Perpanjangan lama rawat inap ekstrem (15 hari) melampaui 3 standar deviasi rata-rata Peer Group.',
@@ -118,7 +118,7 @@ const PRESET_SCENARIOS: PresetScenarioMeta[] = [
     key: 'unbundling',
     title: '5. Special CMG Unbundling',
     subtitle: 'CAD I25 • Top-Up FKL33 Rp 4,5 Jt • Tagihan Rp 15,8 Jt',
-    badge: 'MEDIUM_RISK',
+    badge: 'MEDIUM RISK',
     expectedTier: 'MEDIUM_RISK',
     description:
       'Klaim add-on Special CMG & pemecahan paket tarif di atas batas kewajaran tarif dasar INA-CBG.',
@@ -145,6 +145,18 @@ function formatRuleLabel(rule: string | undefined | null): string {
 function formatRiskLabel(category: string | undefined | null): string {
   if (!category) return '-';
   return category.replace(/_/g, ' ');
+}
+
+function formatNarrativeText(text: string | undefined | null): string {
+  if (!text) return '';
+  return text
+    .replace(/RULE_([A-Za-z0-9_]+)/g, (_, r) => r.replace(/_/g, ' '))
+    .replace(/\bHIGH_RISK\b/g, 'High Risk')
+    .replace(/\bMEDIUM_RISK\b/g, 'Medium Risk')
+    .replace(/\bLOW_RISK\b/g, 'Low Risk')
+    .replace(/\bPENDING_CLARIFICATION\b/g, 'Pending Clarification')
+    .replace(/\bREJECTED_UPCODING\b/g, 'Rejected Upcoding')
+    .replace(/\bPROFIL_KLAIM_WAJAR\b/g, 'Profil Klaim Wajar');
 }
 
 function syncInaCbgWithSeverity(fkl19: string, sev: number): string {
@@ -279,7 +291,7 @@ function buildFallbackEvaluatedClaims(): ClaimEvaluationResponse[] {
       clinical_narrative: [
         'Klaim Tingkat Keparahan Level 3 diajukan dengan durasi rawat sangat singkat (1 hari).',
         'Biaya tagih mencapai 2.66x median kelompok faskes sebaya pada CMG yang sama.',
-        'Terpicu aturan Consistency Guardrail: RULE_GHOST_COMORBIDITY;RULE_SPECIAL_CMG_UNBUNDLING.',
+        'Terpicu aturan Consistency Guardrail: GHOST COMORBIDITY, SPECIAL CMG UNBUNDLING.',
       ],
       explanation_text:
         'Klaim Tingkat Keparahan Level 3 diajukan dengan durasi rawat sangat singkat (1 hari). Biaya tagih mencapai 2.66x median kelompok faskes sebaya.',
@@ -329,7 +341,7 @@ function buildFallbackEvaluatedClaims(): ClaimEvaluationResponse[] {
       clinical_narrative: [
         'Biaya tagih mencapai 2.90x median kelompok faskes sebaya pada CMG yang sama.',
         'Terdapat 3 diagnosis sekunder minor tanpa komorbiditas mayor terverifikasi (indikasi Ghost Comorbidity).',
-        'Terpicu aturan Consistency Guardrail: RULE_SEVERITY_JUMP;RULE_SPECIAL_CMG_UNBUNDLING.',
+        'Terpicu aturan Consistency Guardrail: SEVERITY JUMP, SPECIAL CMG UNBUNDLING.',
       ],
       explanation_text:
         'Lonjakan klaim ke Severity III dengan rasio biaya 2.90x median peer group tanpa komorbiditas mayor.',
@@ -378,7 +390,7 @@ function buildFallbackEvaluatedClaims(): ClaimEvaluationResponse[] {
       },
       clinical_narrative: [
         'Durasi rawat inap (15 hari) melampaui rata-rata kelompok faskes sebaya (Z-Score: +3.42).',
-        'Terpicu aturan Consistency Guardrail: RULE_LOS_INFLATION.',
+        'Terpicu aturan Consistency Guardrail: LOS INFLATION.',
       ],
       explanation_text:
         'Durasi rawat inap 15 hari melampaui 3 standar deviasi rata-rata Peer Group.',
@@ -427,7 +439,7 @@ function buildFallbackEvaluatedClaims(): ClaimEvaluationResponse[] {
       },
       clinical_narrative: [
         'Biaya tagih mencapai 2.63x median kelompok faskes sebaya pada CMG yang sama.',
-        'Terpicu aturan Consistency Guardrail: RULE_SPECIAL_CMG_UNBUNDLING.',
+        'Terpicu aturan Consistency Guardrail: SPECIAL CMG UNBUNDLING.',
       ],
       explanation_text:
         'Indikasi unbundling Special CMG dan kelebihan tagih di atas tarif dasar INA-CBG.',
@@ -461,7 +473,7 @@ function buildFallbackEvaluatedClaims(): ClaimEvaluationResponse[] {
       risk_index: 6.4,
       risk_category: 'LOW_RISK',
       badge_color: '#10b981',
-      primary_driver: 'PROFIL_KLAIM_WAJAR',
+      primary_driver: 'Profil Klaim Wajar',
       recommended_action: 'Wajar (Fast-Track Approval)',
       rule_risk_score: 0.0,
       ml_anomaly_score: 14.2,
@@ -863,7 +875,7 @@ export default function App() {
       setApiOnline(true);
       setStatusBanner({
         type: 'info',
-        text: `Skenario Demo "${presetKey.toUpperCase()}" dievaluasi real-time: Skor Risiko ${enriched.risk_index}/100 [${enriched.risk_category}].`,
+        text: `Skenario Demo "${presetKey.replace(/_/g, ' ').toUpperCase()}" dievaluasi real-time: Skor Risiko ${enriched.risk_index}/100 [${formatRiskLabel(enriched.risk_category)}].`,
       });
     } catch (err) {
       const fbList = buildFallbackEvaluatedClaims();
@@ -1004,7 +1016,7 @@ export default function App() {
       }
       setStatusBanner({
         type: 'success',
-        text: `Batch Evaluation (${summary.total_claims} klaim) selesai: ${summary.high_risk_count} HIGH_RISK, ${summary.medium_risk_count} MEDIUM_RISK, Fast-Track ${summary.fast_track_percentage}%, Potensi Penghematan ${formatRupiah(
+        text: `Evaluasi Batch (${summary.total_claims} klaim) selesai: ${summary.high_risk_count} High Risk, ${summary.medium_risk_count} Medium Risk, Fast-Track ${summary.fast_track_percentage}%, Potensi Penghematan ${formatRupiah(
           summary.total_disputed_potential_idr
         )}.`,
       });
@@ -1428,7 +1440,7 @@ export default function App() {
                   {kpiStats.fastTrackPct}%
                 </span>
                 <span className="text-xs font-medium text-emerald-700/80 dark:text-emerald-300/80">
-                  ({kpiStats.lowCount} Klaim LOW_RISK)
+                  ({kpiStats.lowCount} Klaim Low Risk)
                 </span>
               </div>
               <div className="mt-2 flex items-center justify-between border-t border-emerald-500/20 pt-2 text-xs">
@@ -1604,7 +1616,7 @@ export default function App() {
                             : 'bg-red-500/15 text-red-600 dark:text-red-400'
                         }`}
                       >
-                        {scn.badge}
+                        {formatRiskLabel(scn.badge)}
                       </span>
                       <Play className="h-3.5 w-3.5 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400" />
                     </div>
@@ -2202,7 +2214,7 @@ export default function App() {
                             <span className="font-mono font-semibold">
                               {peerStats?.peer_group_id || selectedClaim.peer_group_id || 'Global'}
                             </span>{' '}
-                            ({peerStats?.resolution_level || 'peer_group'})
+                            ({peerStats?.resolution_level ? peerStats.resolution_level.replace(/_/g, ' ') : 'Kelompok Sebaya'})
                           </p>
                         </div>
                         <BarChart3 className="h-4 w-4 text-[#00529C] dark:text-sky-400" />
@@ -2308,7 +2320,7 @@ export default function App() {
                             <span className="font-bold text-emerald-600 dark:text-emerald-400">
                               •
                             </span>
-                            <span>{line}</span>
+                            <span>{formatNarrativeText(line)}</span>
                           </li>
                         ))}
                       </ul>

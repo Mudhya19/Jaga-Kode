@@ -105,7 +105,12 @@ class XAIRadarExplainer:
         if rule_score > 0:
             violations = str(claim.get("rule_violations", ""))
             if violations:
-                narratives.append(f"Terpicu aturan Consistency Guardrail: {violations}.")
+                clean_viols = ", ".join(
+                    v.replace("RULE_", "").replace("_", " ").strip()
+                    for v in str(violations).split(";")
+                    if v.strip()
+                )
+                narratives.append(f"Terpicu aturan Consistency Guardrail: {clean_viols}.")
 
         if not narratives:
             narratives.append("Profil klaim konsisten dan berada dalam rentang wajar kelompok fasilitas kesehatan sebaya.")
