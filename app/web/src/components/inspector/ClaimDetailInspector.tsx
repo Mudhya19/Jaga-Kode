@@ -8,12 +8,15 @@ import { ClaimInspectorHeader } from './ClaimInspectorHeader';
 import { ClinicalRulesCard } from './ClinicalRulesCard';
 import { CostComparisonCard } from './CostComparisonCard';
 import { XaiRadarCard } from './XaiRadarCard';
+import { ClinicalCopilotCard } from './ClinicalCopilotCard';
 
 interface ClaimDetailInspectorProps {
   claim: ClaimEvaluationResponse;
   auditDecision?: VerifierDecision;
   peerStats: PeerGroupStatsResponse | null;
   isDark: boolean;
+  apiKey?: string;
+  disputeAmount?: number;
 }
 
 export const ClaimDetailInspector: React.FC<ClaimDetailInspectorProps> = ({
@@ -21,6 +24,8 @@ export const ClaimDetailInspector: React.FC<ClaimDetailInspectorProps> = ({
   auditDecision,
   peerStats,
   isDark,
+  apiKey,
+  disputeAmount,
 }) => {
   return (
     <section
@@ -38,6 +43,14 @@ export const ClaimDetailInspector: React.FC<ClaimDetailInspectorProps> = ({
 
       {/* 5 Permenkes No. 26/2021 Clinical Consistency Rules Breakdown */}
       <ClinicalRulesCard claim={claim} />
+
+      {/* AI Clinical Copilot & Draf Surat Klarifikasi Faskes (Google Gemini Free Tier) */}
+      <ClinicalCopilotCard
+        claim={claim}
+        disputeAmount={disputeAmount || 0}
+        apiKey={apiKey}
+        isDark={isDark}
+      />
     </section>
   );
 };

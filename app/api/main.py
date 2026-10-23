@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.security import APIKeyHeader, HTTPBearer
 
 from app.api.dependencies import get_jaga_kode_service
-from app.api.routes import claims_router, audit_router, health_router
+from app.api.routes import claims_router, audit_router, health_router, copilot_router
 
 # Konfigurasi Logging
 logging.basicConfig(
@@ -336,6 +336,7 @@ _openapi_sec_deps = [Depends(_api_key_scheme), Depends(_bearer_scheme)]
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(claims_router, prefix="/api/v1", dependencies=_openapi_sec_deps)
 app.include_router(audit_router, prefix="/api/v1", dependencies=_openapi_sec_deps)
+app.include_router(copilot_router, prefix="/api/v1", dependencies=_openapi_sec_deps)
 
 
 @app.get("/docs", include_in_schema=False)

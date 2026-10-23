@@ -4,6 +4,11 @@ import type {
   AuditRecordItem,
   BatchEvaluationSummary,
   ClaimEvaluationResponse,
+  CopilotChatRequest,
+  CopilotChatResponse,
+  CopilotExplainRequest,
+  CopilotExplainResponse,
+  CopilotStatusResponse,
   HealthStatusResponse,
   PeerGroupStatsResponse,
   PresetCaseKey,
@@ -16,7 +21,11 @@ const DEFAULT_API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1
   ''
 );
 
-function buildHeaders(apiKey?: string, hasBody = false): HeadersInit {
+function buildHeaders(
+  apiKey?: string,
+  hasBody = false,
+  geminiApiKey?: string
+): HeadersInit {
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
@@ -26,13 +35,17 @@ function buildHeaders(apiKey?: string, hasBody = false): HeadersInit {
   if (apiKey && apiKey.trim()) {
     headers['X-API-Key'] = apiKey.trim();
   }
+  if (geminiApiKey && geminiApiKey.trim()) {
+    headers['X-Gemini-API-Key'] = geminiApiKey.trim();
+  }
   return headers;
 }
 
 async function fetchJson<T>(
   path: string,
   options: RequestInit = {},
-  apiKey?: string
+  apiKey?: string,
+  geminiApiKey?: string
 ): Promise<T> {
   const urlsToTry = [
     `${DEFAULT_API_BASE}${path}`,
@@ -45,7 +58,7 @@ async function fetchJson<T>(
       const resp = await fetch(url, {
         ...options,
         headers: {
-          ...buildHeaders(apiKey, Boolean(options.body)),
+          ...buildHeaders(apiKey, Boolean(options.body), geminiApiKey),
           ...(options.headers || {}),
         },
       });
@@ -309,4 +322,49 @@ export const jagaKodeApi = {
       apiKey
     );
   },
+
+  getCopilotStatus(
+    apiKey?: string,
+    geminiApiKey?: string
+  ): Promise<CopilotStatusResponse> {
+    return fetchJson<CopilotStatusResponse>(
+      '/api/v1/copilot/status',
+      { method: 'GET' },
+      apiKey,
+      geminiApiKey
+    );
+  },
+
+  explainWithCopilot(
+    payload: CopilotExplainRequest,
+    apiKey?: string,
+    geminiApiKey?: string
+  ): Promise<CopilotExplainResponse> {
+    return fetchJson<CopilotExplainResponse>(
+      '/api/v1/copilot/explain',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      apiKey,
+      geminiApiKey
+    );
+  },
+
+  askCopilot(
+    payload: CopilotChatRequest,
+    apiKey?: string,
+    geminiApiKey?: string
+  ): Promise<CopilotChatResponse> {
+    return fetchJson<CopilotChatResponse>(
+      '/api/v1/copilot/ask',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      apiKey,
+      geminiApiKey
+    );
+  },
 };
+

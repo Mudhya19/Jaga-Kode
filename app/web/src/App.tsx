@@ -811,6 +811,8 @@ export default function App() {
                   auditDecision={auditedClaimsMap[selectedClaim.claim_id]}
                   peerStats={peerStats}
                   isDark={theme === 'dark'}
+                  apiKey={apiKey}
+                  disputeAmount={disputePreventedInput}
                 />
 
                 <section

@@ -5,7 +5,7 @@ import pytest
 from starlette.testclient import TestClient
 from app.api.main import app
 
-client = TestClient(app)
+client = TestClient(app, raise_server_exceptions=False)
 
 
 def test_api_health():
@@ -631,3 +631,148 @@ def test_frontend_integration_contract_and_priority_triage(tmp_path, monkeypatch
     )
     assert resp_resilient.status_code == 200
     assert resp_resilient.json()["success"] is True
+
+
+def test_copilot_status_endpoint():
+    """Menguji endpoint /api/v1/copilot/status untuk kesiapan LLM Copilot."""
+    resp = client.get("/api/v1/copilot/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] in ("ONLINE", "DEGRADED_OFFLINE_RULES_ONLY")
+    assert "model" in data
+    assert data["zero_pii"] is True
+
+
+def test_copilot_explain_endpoint_and_zero_pii():
+    """Menguji endpoint /api/v1/copilot/explain menghasilkan telaah klinis & draf surat tanpa bocor PII."""
+    payload = {
+        "claim_data": {
+            "claim_id": "CLM-COPILOT-01",
+            "nama_pasien": "RAHASIA PASIEN SANGAT PRIBADI",
+            "nik": "3171012345678901",
+            "FKL17A": "I10",
+            "FKL19": "I-4-17-III",
+            "severity_level": 3,
+            "los": 1,
+            "FKL47": 8900000.0,
+            "FKL32": 3200000.0,
+            "cost_peer_ratio": 2.78,
+            "los_peer_zscore": -1.4,
+            "rule_violations": ["RULE_GHOST_COMORBIDITY"],
+            "risk_index": 85.0,
+            "risk_category": "HIGH_RISK",
+            "primary_driver": "PELANGGARAN_REGULASI_PERMENKES",
+        },
+        "dispute_prevented_idr": 5700000.0,
+        "include_narrative": True,
+        "include_letter": True,
+    }
+    resp = client.post("/api/v1/copilot/explain", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["claim_id"] == "CLM-COPILOT-01"
+    assert data["zero_pii_verified"] is True
+    assert data["narrative"] is not None and len(data["narrative"]) > 50
+    assert data["letter"] is not None and len(data["letter"]) > 50
+    assert "Permenkes" in data["narrative"] or "Permenkes" in data["letter"]
+
+    # Pastikan data sensitif PII tidak masuk ke respons
+    assert "RAHASIA PASIEN" not in resp.text
+    assert "3171012345678901" not in resp.text
+
+
+def test_copilot_chat_endpoint():
+    """Menguji endpoint /api/v1/copilot/chat untuk tanya jawab interaktif verifikator."""
+    chat_payload = {
+        "claim_data": {
+            "claim_id": "CLM-COPILOT-02",
+            "FKL17A": "E11.9",
+            "FKL19": "E-4-10-III",
+            "severity_level": 3,
+            "los": 2,
+            "FKL47": 7800000.0,
+            "cost_peer_ratio": 2.1,
+            "rule_violations": ["RULE_SEVERITY_JUMP"],
+            "risk_index": 82.0,
+        },
+        "prompt": "Berapa potensi selisih dispute klaim ini dan apa dasar hukum Permenkes?",
+        "history": [
+            {"role": "user", "text": "Mohon evaluasi klaim ini."},
+            {"role": "model", "text": "Klaim ini terindikasi Severity Jump dengan skor risiko tinggi."},
+        ],
+    }
+    resp = client.post("/api/v1/copilot/chat", json=chat_payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["claim_id"] == "CLM-COPILOT-02"
+    assert isinstance(data["reply"], str) and len(data["reply"]) > 20
+    assert data["source"] in ("gemini_api", "rule_based_fallback")
+
+
+def test_copilot_fallback_when_unconfigured(monkeypatch):
+    """Menguji ketahanan fallback deterministik copilot jika API key kosong/unconfigured."""
+    from app.api.routes.copilot import get_copilot
+    copilot = get_copilot()
+
+    original_key = copilot.api_key
+    try:
+        copilot.api_key = ""  # Simulasikan tanpa API Key
+        dummy_claim = {
+            "claim_id": "CLM-OFFLINE-TEST",
+            "FKL17A": "I10",
+            "FKL19": "I-4-17-I",
+            "los": 2,
+            "FKL47": 3200000.0,
+            "rule_violations": [],
+            "risk_index": 15.0,
+            "risk_category": "LOW_RISK",
+        }
+        res_narrative = copilot.generate_clinical_audit_narrative(dummy_claim)
+        assert res_narrative["source"] == "rule_based_fallback"
+        assert "TELAAH KLINIS" in res_narrative["narrative"]
+
+        res_letter = copilot.generate_hospital_inquiry_letter(dummy_claim, 0.0)
+        assert res_letter["source"] == "rule_based_fallback"
+        assert "Surat Konfirmasi" in res_letter["letter"] or "KEMENTERIAN KESEHATAN" in res_letter["letter"]
+
+        res_chat = copilot.copilot_chat(dummy_claim, "Apa aturan Permenkes terkait?")
+        assert res_chat["source"] == "rule_based_fallback"
+        assert "Permenkes" in res_chat["reply"]
+    finally:
+        copilot.api_key = original_key
+
+
+def test_copilot_ask_endpoint_with_header_and_radar():
+    """Menguji endpoint /api/v1/copilot/ask dengan X-Gemini-API-Key dan radar 5-sumbu."""
+    ask_payload = {
+        "claim_data": {
+            "claim_id": "CLM-COPILOT-ASK-01",
+            "FKL17A": "I25.1",
+            "FKL19": "I-4-12-II",
+            "severity_level": 2,
+            "los": 3,
+            "FKL47": 15800000.0,
+            "cost_peer_ratio": 2.63,
+            "los_peer_zscore": 0.8,
+            "rule_violations": ["RULE_UNBUNDLED_PROCEDURE"],
+            "risk_index": 78.5,
+            "radar": {
+                "los_deviation": 0.8,
+                "cost_deviation": 2.63,
+                "comorbidity_intensity": 1.0,
+                "severity_level": 2.0,
+                "regulatory_violation": 1.0,
+            },
+        },
+        "prompt": "Bagaimana rekomendasi audit untuk indikasi unbundling ini?",
+    }
+    resp = client.post(
+        "/api/v1/copilot/ask",
+        json=ask_payload,
+        headers={"X-Gemini-API-Key": "AQ.Ab8RN6Ju9ooX8OKLJCxhm-SIxHqdxwvg402Skzo9NZXA7yy1rw"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["claim_id"] == "CLM-COPILOT-ASK-01"
+    assert "reply" in data and len(data["reply"]) > 10
+

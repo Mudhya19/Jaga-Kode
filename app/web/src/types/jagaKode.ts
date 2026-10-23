@@ -161,3 +161,50 @@ export interface AuditRecordItem {
   clinical_notes?: string;
   dispute_prevented_idr?: number;
 }
+
+export interface CopilotExplainRequest {
+  claim_data: Record<string, unknown>;
+  dispute_prevented_idr?: number;
+  include_narrative?: boolean;
+  include_letter?: boolean;
+  gemini_api_key?: string;
+}
+
+export interface CopilotExplainResponse {
+  claim_id: string;
+  narrative?: string | null;
+  letter?: string | null;
+  dispute_amount_idr: number;
+  source: string;
+  model: string;
+  timestamp: string;
+  zero_pii_verified: boolean;
+}
+
+export interface ChatMessageItem {
+  role: 'user' | 'model';
+  text: string;
+}
+
+export interface CopilotChatRequest {
+  claim_data: Record<string, unknown>;
+  prompt: string;
+  history?: ChatMessageItem[];
+  gemini_api_key?: string;
+}
+
+export interface CopilotChatResponse {
+  claim_id: string;
+  reply: string;
+  source: string;
+  model: string;
+  timestamp: string;
+}
+
+export interface CopilotStatusResponse {
+  status: string;
+  configured: boolean;
+  model: string;
+  zero_pii: boolean;
+}
+
