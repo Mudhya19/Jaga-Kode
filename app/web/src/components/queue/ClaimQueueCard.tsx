@@ -25,12 +25,22 @@ export const ClaimQueueCard: React.FC<ClaimQueueCardProps> = ({
   onSelect,
   onLoadToSimulator,
 }) => {
+  const isHighRisk = item.risk_category === 'HIGH_RISK';
+  const isMediumRisk = item.risk_category === 'MEDIUM_RISK';
+
+  // Styling kartu terpilih dinamis selaras dengan tingkat risiko klaim
+  const selectedThemeClass = isHighRisk
+    ? 'border-rose-600 bg-rose-50/70 shadow-xs ring-1 ring-rose-500/30 dark:border-rose-500 dark:bg-rose-950/40'
+    : isMediumRisk
+    ? 'border-amber-500 bg-amber-50/70 shadow-xs ring-1 ring-amber-500/30 dark:border-amber-500 dark:bg-amber-950/40'
+    : 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30 dark:border-emerald-500 dark:bg-emerald-950/40';
+
   return (
     <div
       onClick={onSelect}
       className={`group flex flex-col gap-2.5 rounded-xl border p-3.5 transition-all cursor-pointer ${
         isSelected
-          ? 'border-emerald-600 bg-emerald-50/90 shadow-xs ring-1 ring-emerald-500/30 dark:border-emerald-500 dark:bg-emerald-950/40'
+          ? selectedThemeClass
           : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-xs dark:border-slate-800/90 dark:bg-slate-900/50 dark:hover:border-slate-700'
       }`}
     >

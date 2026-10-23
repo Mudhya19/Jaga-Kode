@@ -54,14 +54,34 @@ export const SmartTriageQueue: React.FC<SmartTriageQueueProps> = ({
           </span>
         </div>
 
-        {/* Filter Tabs */}
+        {/* Filter Tabs dengan warna triase risiko selaras */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {(
             [
-              { id: 'ALL', label: `Semua (${kpiStats.total})` },
-              { id: 'HIGH_RISK', label: `High Risk (${kpiStats.highCount})` },
-              { id: 'MEDIUM_RISK', label: `Medium (${kpiStats.medCount})` },
-              { id: 'LOW_RISK', label: `Fast-Track (${kpiStats.lowCount})` },
+              {
+                id: 'ALL',
+                label: `Semua (${kpiStats.total})`,
+                activeClass: 'bg-[#00529C] text-white shadow-xs dark:bg-sky-600',
+                inactiveClass: 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
+              },
+              {
+                id: 'HIGH_RISK',
+                label: `High Risk (${kpiStats.highCount})`,
+                activeClass: 'bg-rose-600 text-white shadow-xs dark:bg-rose-600',
+                inactiveClass: 'bg-rose-50 text-rose-700 border border-rose-200/80 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50 dark:hover:bg-rose-900/40',
+              },
+              {
+                id: 'MEDIUM_RISK',
+                label: `Medium (${kpiStats.medCount})`,
+                activeClass: 'bg-amber-500 text-white shadow-xs dark:bg-amber-600',
+                inactiveClass: 'bg-amber-50 text-amber-700 border border-amber-200/80 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50 dark:hover:bg-amber-900/40',
+              },
+              {
+                id: 'LOW_RISK',
+                label: `Fast-Track (${kpiStats.lowCount})`,
+                activeClass: 'bg-emerald-600 text-white shadow-xs dark:bg-emerald-600',
+                inactiveClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50 dark:hover:bg-emerald-900/40',
+              },
             ] as const
           ).map((tab) => {
             const active = categoryFilter === tab.id;
@@ -70,10 +90,8 @@ export const SmartTriageQueue: React.FC<SmartTriageQueueProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setCategoryFilter(tab.id)}
-                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer ${
-                  active
-                    ? 'bg-[#00529C] text-white dark:bg-emerald-600'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+                  active ? tab.activeClass : tab.inactiveClass
                 }`}
               >
                 {tab.label}
