@@ -1863,9 +1863,9 @@ export default function App() {
         </section>
 
         {/* ================= MAIN WORKSPACE SPLIT: LEFT TRIAGE QUEUE (5 COLS) + RIGHT INSPECTOR & AUDIT (7 COLS) ================= */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-start">
           {/* LEFT COLUMN: SMART TRIAGE QUEUE PANEL */}
-          <div className="lg:col-span-5 flex flex-col rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-[#111827]">
+          <div className="lg:col-span-5 flex flex-col rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-[#111827] h-fit lg:self-start lg:sticky lg:top-20">
             <div className="border-b border-slate-200 p-4 dark:border-slate-800">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -1920,8 +1920,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Scrollable Claims Queue Cards */}
-            <div className="max-h-[820px] overflow-y-auto p-2.5 space-y-2.5">
+            {/* Scrollable Claims Queue Cards (Auto-flex to content, max bounded to viewport) */}
+            <div className="max-h-[calc(100vh-220px)] min-h-0 overflow-y-auto p-2.5 space-y-2.5">
               {filteredQueue.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400">
                   Tidak ada klaim yang cocok dengan filter atau kata kunci pencarian.
