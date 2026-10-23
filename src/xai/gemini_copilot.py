@@ -70,30 +70,44 @@ def scrub_pii_from_text(text: str) -> str:
     return s
 
 
-def strip_markdown_formatting(text: str) -> str:
+def clean_markdown_to_plain_text(text: str) -> str:
     """
-    Membersihkan formatting Markdown (**teks**, *teks*, # Judul, `kode`, dsb.)
-    menjadi teks polos dinas resmi yang bersih dan siap disalin langsung ke Word / Notepad / e-Klaim.
+    Mengubah teks berformat Markdown menjadi teks bersih (plain text)
+    yang siap dicetak, disalin ke Microsoft Word, Notepad, chat (WhatsApp/Telegram),
+    atau naskah dinas resmi tanpa simbol markdown (**bold**, *italic*, ### heading, `code`, --- divider).
     """
     if not text:
         return ""
-    # 1. Hapus header Markdown (# Header, ## Header, ### Header)
-    cleaned = re.sub(r"^(?:#{1,6}\s+)(.+)$", r"\1", text, flags=re.MULTILINE)
-    # 2. Standarkan garis horizontal (---, ***, ___)
-    cleaned = re.sub(r"^[ \t]*[-*_]{3,}[ \t]*$", r"--------------------------------------------------", cleaned, flags=re.MULTILINE)
-    # 3. Hapus bold/italic asterisks & underscores (**bold**, *italic*, __bold__, _italic_)
-    cleaned = re.sub(r"\*\*([^*]+)\*\*", r"\1", cleaned)
-    cleaned = re.sub(r"__([^_]+)__", r"\1", cleaned)
-    cleaned = re.sub(r"\*([^*\n]+)\*", r"\1", cleaned)
-    cleaned = re.sub(r"(?<!\w)_([^_\n]+)_(?!\w)", r"\1", cleaned)
-    # 4. Hapus inline code backticks (`kode` -> kode)
-    cleaned = re.sub(r"`([^`]+)`", r"\1", cleaned)
-    # 5. Standarkan bullet markdown (* item, + item) menjadi dash standar (- item)
-    cleaned = re.sub(r"^[ \t]*\*[ \t]+", r"- ", cleaned, flags=re.MULTILINE)
-    cleaned = re.sub(r"^[ \t]*\+[ \t]+", r"- ", cleaned, flags=re.MULTILINE)
-    # 6. Bersihkan baris kosong berlebih
-    cleaned = re.sub(r"\n{3,}", r"\n\n", cleaned)
-    return cleaned.strip()
+
+    # 1. Hapus code blocks
+    s = re.sub(r"```[a-zA-Z]*\n?", "", text)
+    s = s.replace("```", "")
+
+    # 2. Ganti markdown headings (# Heading, ## Heading, ### Heading) menjadi teks bersih
+    s = re.sub(r"(?m)^#{1,6}\s*(.+)$", r"\1", s)
+
+    # 3. Ubah horizontal rule / pemisah garis (--- atau ***) menjadi garis pembatas rapi
+    s = re.sub(r"(?m)^(\-{3,}|\*{3,}|\_{3,})\s*$", "--------------------------------------------------", s)
+
+    # 4. Hapus bold / italic (**text**, *text*, __text__, _text_)
+    s = re.sub(r"\*\*([^*]+)\*\*", r"\1", s)
+    s = re.sub(r"__([^_]+)__", r"\1", s)
+    s = re.sub(r"\*([^*]+)\*", r"\1", s)
+    s = re.sub(r"_([^_]+)_", r"\1", s)
+
+    # 5. Hapus inline code (`code` -> code)
+    s = re.sub(r"`([^`]+)`", r"\1", s)
+
+    # 6. Normalkan bullet point (* item -> - item)
+    s = re.sub(r"(?m)^\s*[\*\+]\s+", "- ", s)
+
+    # 7. Hapus sisa-sisa asterisks atau backticks yang terisolasi
+    s = s.replace("**", "").replace("`", "")
+
+    # 8. Rapikan baris kosong berlebihan (maksimal 2 baris berturut-turut)
+    s = re.sub(r"\n{3,}", "\n\n", s)
+
+    return s.strip()
 
 
 def sanitize_claim_for_zero_pii(claim_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -277,16 +291,18 @@ class GeminiClinicalCopilot:
             "Rujukan utama: Permenkes No. 26/2021 (Petunjuk Teknis INA-CBG), Permenkes No. 16/2019 (Pencegahan Fraud), "
             "evaluasi 5 Aturan Guardrail Klinis, serta 5 Dimensi Radar Deviasi (LoS, Biaya, Komorbiditas, Severity, Regulasi). "
             "Gunakan bahasa Indonesia baku kedokteran, sertakan pasal regulasi relevan, dan patuhi standar Zero-PII. "
-            "PENTING: Gunakan format TEKS POLOS RESMI (plain text) tanpa format Markdown (JANGAN gunakan tanda bintang asterisks **teks**, tanda pagar #, backtick `, atau tanda bintang *). "
-            "Gunakan penomoran rapi (1., 2., a., b., - ) agar langsung siap disalin ke lembar kerja Microsoft Word, Notepad, atau portal resmi e-Klaim tanpa karakter kotor markdown."
+            "PENTING: Jangan gunakan format Markdown (seperti tanda bintang **, tanda pagar ###, atau backtick `). "
+            "Hasilkan teks bersih (plain text) siap cetak dan siap salin ke Microsoft Word, Notepad, chat, atau naskah dinas tanpa karakter markdown."
         )
 
         radar = safe_ctx.get("radar_5_axis_metrics", {})
         user_prompt = f"""
 Silakan lakukan telaah klinis mendalam terhadap data klaim rawat inap berikut:
+```json
 {claim_json_str}
+```
 
-Formatkan telaah klinis ke dalam struktur teks polos resmi (tanpa tanda markdown seperti asterisks atau pagar) dengan urutan berikut:
+Formatkan telaah klinis ke dalam struktur teks bersih (plain text) tanpa format markdown (tanpa **, tanpa ###, tanpa backtick):
 1. Ringkasan Triase Risiko: Skor CPS ({safe_ctx.get('composite_risk_score', 0):.1f}/100), kategori risiko ({safe_ctx.get('risk_category')}), dan faktor pemicu dominan ({safe_ctx.get('primary_risk_driver')}).
 2. Kesesuaian Diagnosis & Prosedur: Evaluasi hubungan diagnosis primer ({safe_ctx.get('primary_diagnosis_icd10')}) vs diagnosis sekunder ({', '.join(safe_ctx.get('secondary_diagnoses_icd10', [])) or 'Nihil'}) serta kaidah koding ICD-10 Vol 2.
 3. Analisis Tingkat Keparahan (Severity Level {safe_ctx.get('severity_level')}) & INA-CBG ({safe_ctx.get('ina_cbg_code')}): Analisis apakah eskalasi severity didukung bukti klinis memadai (evaluasi Ghost Comorbidity atau Severity Jump).
@@ -308,11 +324,11 @@ Formatkan telaah klinis ke dalam struktur teks polos resmi (tanpa tanda markdown
             source_mode = "rule_based_fallback"
             model_used = "jaga_kode_deterministic_v2"
 
-        generated_text = strip_markdown_formatting(generated_text)
+        clean_narrative = clean_markdown_to_plain_text(generated_text)
 
         return {
             "claim_id": safe_ctx["claim_pseudonym"],
-            "narrative": generated_text,
+            "narrative": clean_narrative,
             "source": source_mode,
             "model": model_used,
             "timestamp": datetime.now().isoformat(),
@@ -348,8 +364,8 @@ Formatkan telaah klinis ke dalam struktur teks polos resmi (tanpa tanda markdown
             "Surat harus formal, santun namun tegas secara regulasi, mengutip Permenkes No. 26/2021 dan Permenkes No. 16/2019, "
             "serta merinci dokumen pembuktian medis yang wajib diserahkan pihak RS dalam batas waktu yang ditentukan. "
             f"Status verifikasi saat ini adalah: {decision}. "
-            "PENTING: Tuliskan surat dalam format TEKS DINAS RESMI (plain text) tanpa format Markdown (JANGAN gunakan tanda bintang asterisks **teks**, tanda pagar #, backtick `, atau tanda bintang *). "
-            "Kop surat, nomor, perihal, dan perincian harus bersih dan siap disalin langsung ke lembar kerja Microsoft Word, Notepad, atau portal resmi e-Klaim tanpa karakter kotor markdown."
+            "PENTING: Jangan gunakan format Markdown (seperti tanda bintang **, tanda pagar ###, atau backtick `). "
+            "Hasilkan format surat dinas resmi dengan teks bersih (plain text) siap cetak dan siap salin ke Microsoft Word, Notepad, atau email dinas."
         )
 
         perihal_text = (
@@ -360,12 +376,13 @@ Formatkan telaah klinis ke dalam struktur teks polos resmi (tanpa tanda markdown
 
         user_prompt = f"""
 Buat draf resmi Surat Resmi BPJS Kesehatan ke Rumah Sakit berdasarkan temuan data klaim berikut:
+```json
 {claim_json_str}
-
+```
 Status Keputusan Verifikasi: {decision}
 Nominal estimasi selisih koreksi / potensi dispute: Rp {dispute_amount:,.2f}
 
-Ketentuan struktur teks surat resmi dinas (teks polos, tanpa sintaks markdown seperti asterisks atau tanda pagar):
+Ketentuan struktur surat resmi (format teks bersih tanpa format markdown):
 - Kop / Nomor Surat: [Format Nomor Registrasi Resmi BPJS Kesehatan]
 - Tujuan: Yth. Direktur Rumah Sakit / FKRTL & Tim Casemix
 - Perihal: {perihal_text}
@@ -385,11 +402,11 @@ Ketentuan struktur teks surat resmi dinas (teks polos, tanpa sintaks markdown se
             source_mode = "rule_based_fallback"
             model_used = "jaga_kode_deterministic_v2"
 
-        generated_text = strip_markdown_formatting(generated_text)
+        clean_letter = clean_markdown_to_plain_text(generated_text)
 
         return {
             "claim_id": safe_ctx["claim_pseudonym"],
-            "letter": generated_text,
+            "letter": clean_letter,
             "dispute_amount_idr": dispute_amount,
             "source": source_mode,
             "model": model_used,
@@ -417,10 +434,11 @@ Ketentuan struktur teks surat resmi dinas (teks polos, tanpa sintaks markdown se
         claim_json_str = json.dumps(safe_ctx, indent=2, ensure_ascii=False)
 
         system_instruction = (
-            "Anda adalah Asisten Klinis Interaktif JAGA-KODE (Powered by Google Gemini Free Tier). "
+            "Anda adalah Asisten Klinis Interaktif JAGA-KODE. "
             "Anda bertugas menjawab pertanyaan petugas verifikator BPJS Kesehatan seputar klaim rawat inap terpilih. "
             "Berikan jawaban yang ringkas, berbobot medis-klinis, didukung rujukan kaidah koding ICD-10 dan Permenkes No. 26/2021. "
-            "Jangan pernah meminta atau menyertakan identitas pribadi pasien (Zero-PII)."
+            "Jangan pernah meminta atau menyertakan identitas pribadi pasien (Zero-PII). "
+            "Formatkan jawaban dalam teks bersih yang siap dibaca tanpa simbol markdown yang berlebihan."
         )
 
         history_context = ""
@@ -452,11 +470,11 @@ Jawab dengan lugas, informatif, dan berikan rekomendasi aksi konkret bagi verifi
             source_mode = "rule_based_fallback"
             model_used = "jaga_kode_deterministic_v2"
 
-        generated_text = strip_markdown_formatting(generated_text)
+        clean_reply = clean_markdown_to_plain_text(generated_text)
 
         return {
             "claim_id": safe_ctx["claim_pseudonym"],
-            "reply": generated_text,
+            "reply": clean_reply,
             "source": source_mode,
             "model": model_used,
             "timestamp": datetime.now().isoformat(),
@@ -483,7 +501,6 @@ Jawab dengan lugas, informatif, dan berikan rekomendasi aksi konkret bagi verifi
 Nomor Kunjungan / Claim ID: {cid}
 Standar Regulasi: Permenkes RI No. 26 Tahun 2021 & Permenkes RI No. 16 Tahun 2019
 Kepatuhan Data: Zero-PII Standard (UU Perlindungan Data Pribadi No. 27 Tahun 2022)
-
 --------------------------------------------------
 
 1. Ringkasan Triase Risiko & Skor Komposit
@@ -495,7 +512,7 @@ Kepatuhan Data: Zero-PII Standard (UU Perlindungan Data Pribadi No. 27 Tahun 202
 2. Evaluasi Koherensi Klinis & Kode Diagnosis
 - Diagnosis Utama (FKL17A/18): {dx_prim}
 - Diagnosis Sekunder yang Ditagihkan: {dx_sec}
-- Berdasarkan Kaidah Koding ICD-10 Volume 2 dan Permenkes No. 26/2021, diagnosis sekunder hanya dapat diklaimkan apabila menimbulkan konsekuensi terapeutik nyata, pemeriksaan diagnostik lanjutan, atau peningkatan lama rawat inap selama masa perawatan.
+- Sesuai Kaidah Koding ICD-10 Volume 2 dan Permenkes No. 26/2021, diagnosis sekunder hanya dapat diklaimkan apabila menimbulkan konsekuensi terapeutik nyata, pemeriksaan diagnostik lanjutan, atau peningkatan lama rawat inap selama masa perawatan.
 
 3. Analisis Tingkat Keparahan (Severity Level {sev}) & Tarif INA-CBG
 - Kode INA-CBG: {cbg} (Tingkat Keparahan: Level {sev})
@@ -526,7 +543,7 @@ Kepatuhan Data: Zero-PII Standard (UU Perlindungan Data Pribadi No. 27 Tahun 202
 2. Periksa Catatan Perkembangan Pasien Terintegrasi (CPPT), lembar instruksi dokter, dan hasil laboratorium/penunjang.
 3. Apabila komorbiditas tidak memenuhi kriteria penatalaksanaan aktif, sesuaikan kode INA-CBG ke tingkat keparahan yang sesuai (Severity Level I).
 """
-        return strip_markdown_formatting(narrative)
+        return narrative.strip()
 
     def _build_deterministic_inquiry_letter(self, ctx: Dict[str, Any], dispute_amount: float) -> str:
         """Fallback draf surat resmi jika koneksi Gemini tidak tersedia atau kuota habis."""
@@ -604,7 +621,7 @@ BPJS KESEHATAN KANTOR CABANG
 Tim Verifikasi Klaim & Pencegahan Kecurangan JKN
 (Ditandatangani secara elektronik sesuai UU ITE No. 11/2008 & UU PDP No. 27/2022)
 """
-        return strip_markdown_formatting(letter)
+        return letter.strip()
 
     def _build_deterministic_chat_response(self, ctx: Dict[str, Any], query: str) -> str:
         """Fallback jawaban chat interaktif jika offline atau kuota habis."""

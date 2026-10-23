@@ -24,7 +24,15 @@ export const ClaimInspectorHeader: React.FC<ClaimInspectorHeaderProps> = ({
             </span>
             <RiskBadge category={claim.risk_category} />
             {auditDecision && (
-              <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-bold border ${
+                  auditDecision === 'REJECTED_UPCODING'
+                    ? 'bg-red-500/15 text-red-600 dark:bg-red-500/20 dark:text-red-400 border-red-500/30'
+                    : auditDecision === 'PENDING_CLARIFICATION'
+                    ? 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border-amber-500/30'
+                    : 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-500/30'
+                }`}
+              >
                 Keputusan Verifikator: {formatDecisionLabel(auditDecision)}
               </span>
             )}

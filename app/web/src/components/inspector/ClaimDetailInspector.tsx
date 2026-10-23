@@ -44,7 +44,7 @@ export const ClaimDetailInspector: React.FC<ClaimDetailInspectorProps> = ({
       {/* 5 Permenkes No. 26/2021 Clinical Consistency Rules Breakdown */}
       <ClinicalRulesCard claim={claim} />
 
-      {/* AI Clinical Copilot & Draf Surat Klarifikasi Faskes (Google Gemini Free Tier) */}
+      {/* AI Clinical Copilot & Draf Surat Klarifikasi Faskes */}
       <ClinicalCopilotCard
         claim={claim}
         disputeAmount={disputeAmount || 0}

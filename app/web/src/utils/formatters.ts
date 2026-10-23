@@ -49,27 +49,32 @@ export function formatNarrativeText(text: string | undefined | null): string {
 }
 
 /**
- * Membersihkan sintaks Markdown (**teks**, *teks*, # Judul, `kode`, dll.)
- * Menghasilkan teks polos resmi yang langsung siap disalin ke Microsoft Word / Notepad / e-Klaim
+ * Membersihkan teks dari sintaks Markdown (seperti **, *, #, `, ---)
+ * sehingga siap disalin ke Microsoft Word, Notepad, WhatsApp/Chat, atau naskah dinas resmi.
  */
-export function stripMarkdown(text: string | undefined | null): string {
+export function cleanPlainTextForCopy(text: string | undefined | null): string {
   if (!text) return '';
   return text
-    // Hapus header Markdown (# Header, ## Header, ### Header)
-    .replace(/^(?:#{1,6}\s+)(.+)$/gm, '$1')
-    // Standarkan garis horizontal pembatas (---, ***, ___)
-    .replace(/^[ \t]*[-*_]{3,}[ \t]*$/gm, '--------------------------------------------------')
-    // Hapus format bold/italic (**teks**, *teks*, __teks__, _teks_)
+    // 1. Hapus code blocks ``` ... ```
+    .replace(/```[a-zA-Z]*\n?/g, '')
+    .replace(/```/g, '')
+    // 2. Ganti markdown headings (# Heading, ## Heading, ### Heading)
+    .replace(/^#{1,6}\s*(.+)$/gm, '$1')
+    // 3. Ubah horizontal rules (--- atau ***) menjadi garis pembatas rapi
+    .replace(/^(\-{3,}|\*{3,}|\_{3,})\s*$/gm, '--------------------------------------------------')
+    // 4. Hapus bold / italic (**text**, *text*, __text__, _text_)
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/__([^_]+)__/g, '$1')
-    .replace(/\*([^*\n]+)\*/g, '$1')
-    .replace(/(?<!\w)_([^_\n]+)_(?!\w)/g, '$1')
-    // Hapus inline backticks (`kode` -> kode)
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    // 5. Hapus inline code (`code` -> code)
     .replace(/`([^`]+)`/g, '$1')
-    // Standarkan bullet markdown (* item, + item) menjadi dash standar (- item)
-    .replace(/^[ \t]*\*[ \t]+/gm, '- ')
-    .replace(/^[ \t]*\+[ \t]+/gm, '- ')
-    // Bersihkan spasi kosong ganda berlebih
+    // 6. Normalkan bullet points (* item -> - item)
+    .replace(/^\s*[\*\+]\s+/gm, '- ')
+    // 7. Bersihkan sisa-sisa asterisks atau backtick yang terisolasi
+    .replace(/\*\*/g, '')
+    .replace(/`/g, '')
+    // 8. Rapikan baris kosong berlebih
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
