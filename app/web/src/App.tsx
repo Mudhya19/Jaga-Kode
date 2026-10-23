@@ -132,6 +132,21 @@ const HUMAN_DECISIONS = new Set<string>([
   'REJECTED_UPCODING',
 ]);
 
+function formatDecisionLabel(decision: string | undefined | null): string {
+  if (!decision) return '-';
+  return decision.replace(/_/g, ' ');
+}
+
+function formatRuleLabel(rule: string | undefined | null): string {
+  if (!rule) return '';
+  return rule.replace(/^RULE_/, '').replace(/_/g, ' ');
+}
+
+function formatRiskLabel(category: string | undefined | null): string {
+  if (!category) return '-';
+  return category.replace(/_/g, ' ');
+}
+
 function syncInaCbgWithSeverity(fkl19: string, sev: number): string {
   const roman = sev === 3 ? 'III' : sev === 2 ? 'II' : 'I';
   const trimmed = fkl19.trim().toUpperCase();
@@ -928,7 +943,7 @@ export default function App() {
       setCategoryFilter('ALL');
       setStatusBanner({
         type: 'success',
-        text: `Klaim "${enriched.claim_id}" berhasil dievaluasi via POST /api/v1/claims/evaluate → Skor ${enriched.risk_index}/100 (${enriched.risk_category}).`,
+        text: `Klaim "${enriched.claim_id}" berhasil dievaluasi • Skor Risiko: ${enriched.risk_index}/100 (${formatRiskLabel(enriched.risk_category)}).`,
       });
     } catch (err) {
       setStatusBanner({
@@ -1368,7 +1383,7 @@ export default function App() {
                 <span>
                   {runningBatch
                     ? 'Memproses Batch...'
-                    : 'Uji Batch 5 Skenario (POST /batch-evaluate)'}
+                    : 'Evaluasi Otomatis 5 Skenario'}
                 </span>
               </button>
             </div>
@@ -1481,22 +1496,22 @@ export default function App() {
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs dark:border-emerald-500/30 dark:bg-emerald-950/40">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="font-bold text-emerald-800 dark:text-emerald-300">
-                  Hasil Batch API (/api/v1/claims/batch-evaluate):
+                  Hasil Evaluasi Otomatis Batch Klaim:
                 </span>
                 <span>
                   Total: <strong>{batchSummary.total_claims} klaim</strong>
                 </span>
                 <span>•</span>
                 <span className="text-red-600 dark:text-red-400 font-semibold">
-                  HIGH_RISK: {batchSummary.high_risk_count}
+                  High Risk: {batchSummary.high_risk_count}
                 </span>
                 <span>•</span>
                 <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                  MEDIUM_RISK: {batchSummary.medium_risk_count}
+                  Medium Risk: {batchSummary.medium_risk_count}
                 </span>
                 <span>•</span>
                 <span className="text-emerald-700 dark:text-emerald-300 font-semibold">
-                  LOW_RISK: {batchSummary.low_risk_count} ({batchSummary.fast_track_percentage}%
+                  Low Risk: {batchSummary.low_risk_count} ({batchSummary.fast_track_percentage}%
                   Fast-Track)
                 </span>
                 <span>•</span>
@@ -1538,10 +1553,8 @@ export default function App() {
                   Evaluator
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Klik salah satu skenario untuk memuat payload dari{' '}
-                  <code className="font-mono">/api/v1/claims/preset-cases</code> dan menjalankan
-                  inferensi <code className="font-mono">POST /api/v1/claims/evaluate</code> secara
-                  instan
+                  Pilih salah satu skenario klinis di bawah ini untuk menguji deteksi anomali AI
+                  Guardrail secara instan.
                 </p>
               </div>
             </div>
@@ -1895,8 +1908,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Scrollable Claims Table */}
-            <div className="max-h-[780px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
+            {/* Scrollable Claims Queue Cards */}
+            <div className="max-h-[820px] overflow-y-auto p-2.5 space-y-2.5">
               {filteredQueue.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400">
                   Tidak ada klaim yang cocok dengan filter atau kata kunci pencarian.
@@ -1909,25 +1922,25 @@ export default function App() {
                     <div
                       key={item.claim_id}
                       onClick={() => setSelectedClaimId(item.claim_id)}
-                      className={`group flex flex-col gap-2 p-3.5 transition-colors cursor-pointer ${
+                      className={`group flex flex-col gap-2.5 rounded-xl border p-3.5 transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-emerald-50/80 border-l-4 border-l-emerald-600 dark:bg-emerald-950/30 dark:border-l-emerald-400'
-                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                          ? 'border-emerald-600 bg-emerald-50/90 shadow-xs ring-1 ring-emerald-500/30 dark:border-emerald-500 dark:bg-emerald-950/40'
+                          : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-xs dark:border-slate-800/90 dark:bg-slate-900/50 dark:hover:border-slate-700'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200/80 font-mono text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200/80 font-mono text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300 mt-0.5">
                             {idx + 1}
                           </span>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono text-xs font-extrabold text-slate-900 dark:text-white">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-mono text-xs font-extrabold text-slate-900 truncate dark:text-white">
                                 {item.claim_id}
                               </span>
                               {auditStatus && (
                                 <span className="rounded bg-[#00529C]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#00529C] dark:bg-sky-500/20 dark:text-sky-300">
-                                  ✓ {auditStatus}
+                                  ✓ {formatDecisionLabel(auditStatus)}
                                 </span>
                               )}
                             </div>
@@ -1945,7 +1958,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="flex flex-col items-end gap-1">
+                        <div className="flex shrink-0 flex-col items-end gap-1">
                           {renderRiskBadge(item.risk_category)}
                           <span className="font-mono text-xs font-extrabold text-slate-800 dark:text-slate-200">
                             CPS: {item.risk_index.toFixed(1)}/100
@@ -1964,26 +1977,26 @@ export default function App() {
                             }}
                           />
                         </div>
-                        <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                        <span className="shrink-0 font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                           {formatRupiah(item.FKL47, true)}
                         </span>
                       </div>
 
                       {/* Rule Violation Pills */}
-                      <div className="flex flex-wrap items-center justify-between gap-1.5">
-                        <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 pt-0.5">
+                        <div className="flex flex-wrap items-center gap-1 min-w-0 flex-1">
                           {item.rule_violations.length > 0 ? (
                             item.rule_violations.map((rv) => (
                               <span
                                 key={rv}
-                                className="rounded bg-red-500/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                                className="rounded bg-red-500/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-red-700 dark:bg-red-500/20 dark:text-red-300 border border-red-500/20"
                               >
-                                {rv}
+                                {formatRuleLabel(rv)}
                               </span>
                             ))
                           ) : (
                             <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                              Driver: {item.primary_driver}
+                              Driver: {formatDecisionLabel(item.primary_driver)}
                             </span>
                           )}
                         </div>
@@ -1994,7 +2007,7 @@ export default function App() {
                             setSelectedClaimId(item.claim_id);
                             handleLoadClaimToSimulator(item);
                           }}
-                          className="text-[11px] font-semibold text-[#00529C] opacity-0 group-hover:opacity-100 hover:underline dark:text-sky-400 cursor-pointer"
+                          className="shrink-0 text-[11px] font-semibold text-[#00529C] opacity-0 group-hover:opacity-100 hover:underline dark:text-sky-400 cursor-pointer"
                         >
                           Uji di Simulator →
                         </button>
@@ -2093,7 +2106,7 @@ export default function App() {
                       </span>
                       <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
                         Faktor Pemicu Dominan:{' '}
-                        <code className="font-mono font-bold">{selectedClaim.primary_driver}</code>
+                        <code className="font-mono font-bold">{formatRuleLabel(selectedClaim.primary_driver)}</code>
                       </div>
                     </div>
                   </div>
@@ -2155,11 +2168,21 @@ export default function App() {
                             />
                             <Legend wrapperStyle={{ fontSize: '11px' }} />
                             <Tooltip
-                              contentStyle={{
-                                backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                                borderColor: isDark ? '#334155' : '#cbd5e1',
-                                borderRadius: '8px',
-                                fontSize: '12px',
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const p = payload[0];
+                                  return (
+                                    <div className="rounded-xl border border-slate-200 bg-white/95 p-2.5 shadow-lg backdrop-blur-xs dark:border-slate-700 dark:bg-slate-900/95">
+                                      <p className="text-xs font-bold text-[#00529C] dark:text-sky-400">
+                                        {p.name || (p.payload as any)?.metric || 'Metrik XAI'}
+                                      </p>
+                                      <p className="mt-1 font-mono text-xs font-extrabold text-slate-800 dark:text-slate-100">
+                                        Skor: {p.value} / 100
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                                return null;
                               }}
                             />
                           </RadarChart>
@@ -2212,12 +2235,24 @@ export default function App() {
                               }}
                             />
                             <Tooltip
-                              formatter={(val: number) => formatRupiah(val)}
-                              contentStyle={{
-                                backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                                borderColor: isDark ? '#334155' : '#cbd5e1',
-                                borderRadius: '8px',
-                                fontSize: '12px',
+                              content={({ active, payload, label }) => {
+                                if (active && payload && payload.length) {
+                                  const val = payload[0].value as number;
+                                  return (
+                                    <div className="rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur-xs dark:border-slate-700 dark:bg-slate-900/95">
+                                      <p className="text-xs font-bold text-[#00529C] dark:text-sky-400">
+                                        {label}
+                                      </p>
+                                      <p className="mt-1 font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                        Nominal:{' '}
+                                        <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                                          {formatRupiah(val)}
+                                        </span>
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                                return null;
                               }}
                             />
                             <Bar dataKey="nominal" radius={[0, 6, 6, 0]}>
@@ -2425,7 +2460,7 @@ export default function App() {
                         <span className="mt-2 text-xs font-bold text-slate-900 dark:text-white">
                           Setujui Klaim (Valid)
                         </span>
-                        <span className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        <span className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                           Bukti rekam medis mendukung penuh kode diagnosis & tindakan.
                         </span>
                       </button>
@@ -2442,14 +2477,14 @@ export default function App() {
                       >
                         <div className="flex w-full items-center justify-between">
                           <span className="rounded bg-amber-500/20 px-2 py-0.5 font-mono text-[10px] font-extrabold text-amber-800 dark:text-amber-300">
-                            PENDING_CLARIFICATION
+                            PENDING CLARIFICATION
                           </span>
                           <Clock className="h-4 w-4 text-amber-600" />
                         </div>
                         <span className="mt-2 text-xs font-bold text-slate-900 dark:text-white">
                           Tunda / Klarifikasi RM
                         </span>
-                        <span className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        <span className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                           Kembalikan ke Faskes untuk konfirmasi resume medis & bukti penunjang.
                         </span>
                       </button>
@@ -2465,14 +2500,14 @@ export default function App() {
                       >
                         <div className="flex w-full items-center justify-between">
                           <span className="rounded bg-red-500/20 px-2 py-0.5 font-mono text-[10px] font-extrabold text-red-800 dark:text-red-300">
-                            REJECTED_UPCODING
+                            REJECTED UPCODING
                           </span>
                           <XCircle className="h-4 w-4 text-red-600" />
                         </div>
                         <span className="mt-2 text-xs font-bold text-slate-900 dark:text-white">
                           Tolak / Koreksi Kode
                         </span>
-                        <span className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        <span className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                           Koreksi downcode tarif INA-CBG karena bukti komorbiditas/prosedur tidak
                           sah.
                         </span>
@@ -2566,7 +2601,7 @@ export default function App() {
                         <span>
                           {submittingAudit
                             ? 'Menyimpan ke Audit Trail...'
-                            : `Rekam Keputusan (${selectedDecision}) ke Audit Trail`}
+                            : `Rekam Keputusan (${formatDecisionLabel(selectedDecision)}) ke Audit Trail`}
                         </span>
                       </button>
                     </div>
@@ -2574,16 +2609,32 @@ export default function App() {
 
                   {/* Live Audit Trail History Table */}
                   <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-800">
-                    <div className="mb-2.5 flex items-center justify-between">
+                    <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <History className="h-4 w-4 text-[#00529C] dark:text-sky-400" />
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                          Riwayat Audit Verifikator Real-Time (GET /api/v1/audit/recent)
+                          Log Audit Keputusan Verifikator Real-Time
                         </h3>
                       </div>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {auditHistory.length} rekaman terbaru
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {auditHistory.length} rekaman terbaru
+                        </span>
+                        {auditHistory.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm('Bersihkan tampilan riwayat untuk sesi demo ini? (Catatan: Berkas log audit server tetap terlindungi secara permanen)')) {
+                                setAuditHistory([]);
+                              }
+                            }}
+                            className="rounded px-2 py-0.5 text-[10px] font-semibold text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                            title="Bersihkan riwayat tampilan layar untuk memulai rekaman sesi demo baru"
+                          >
+                            Bersihkan Sesi Demo
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="max-h-56 overflow-x-auto overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
@@ -2641,7 +2692,7 @@ export default function App() {
                                         : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
                                     }`}
                                   >
-                                    {rec.verifier_decision}
+                                    {formatDecisionLabel(rec.verifier_decision)}
                                   </span>
                                 </td>
                                 <td className="max-w-xs truncate px-3 py-2 text-slate-600 dark:text-slate-300">
