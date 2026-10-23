@@ -159,3 +159,9 @@ class AuditTrailLogger:
                     except json.JSONDecodeError:
                         continue
         return list(recent_entries)
+
+    def reset_audit_trail(self) -> None:
+        """Mengosongkan riwayat jejak audit untuk keperluan simulasi sesi demo baru."""
+        with self._lock:
+            with open(self.audit_file, "w", encoding="utf-8") as f:
+                f.truncate(0)

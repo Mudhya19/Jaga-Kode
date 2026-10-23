@@ -52,3 +52,16 @@ def get_recent_audit_records(
     except Exception as e:
         logger.error(f"Gagal membaca audit: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Gagal membaca riwayat audit karena kesalahan internal server.")
+
+
+@router.post("/reset-demo", summary="Reset Sesi Demo Audit Trail")
+def reset_demo_audit(
+    service: JagaKodeService = Depends(get_jaga_kode_service),
+):
+    """Mereset catatan jejak audit untuk keperluan simulasi sesi demo baru."""
+    try:
+        service.reset_audits()
+        return {"success": True, "message": "Jejak audit berhasil di-reset untuk sesi demo baru."}
+    except Exception as e:
+        logger.error(f"Gagal reset demo audit: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Gagal mereset audit demo.")

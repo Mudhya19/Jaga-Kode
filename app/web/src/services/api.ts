@@ -301,4 +301,12 @@ export const jagaKodeApi = {
       apiKey
     );
   },
+
+  resetDemoAudit(apiKey?: string): Promise<{ success: boolean; message: string }> {
+    return fetchJson<{ success: boolean; message: string }>(
+      '/api/v1/audit/reset-demo',
+      { method: 'POST' },
+      apiKey
+    );
+  },
 };

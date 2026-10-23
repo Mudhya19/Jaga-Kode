@@ -25,6 +25,7 @@ import {
   Moon,
   Play,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
   ShieldAlert,
@@ -1032,6 +1033,67 @@ export default function App() {
     }
   };
 
+  // Full Demo Session Reset (Kembali ke kondisi awal untuk presentasi/pengujian baru)
+  const handleResetDemoSession = async () => {
+    if (
+      !window.confirm(
+        'Mulai ulang seluruh sesi demo dari awal? Antrean klaim, simulasi, dan tampilan keputusan akan di-refresh ke kondisi default.'
+      )
+    ) {
+      return;
+    }
+    setLoadingInitial(true);
+    try {
+      setActivePresetKey(null);
+      setBatchSummary(null);
+      setCategoryFilter('ALL');
+      setSearchQuery('');
+      setAuditedClaimsMap({});
+      setAuditHistory([]);
+      setShowCustomForm(false);
+      setFormInput(FALLBACK_PRESET_CASES.ghost_comorbidity);
+      setSecondaryDiagText('N17.9, I50.9, A41.9');
+      setSelectedDecision('REJECTED_UPCODING');
+      setVerifierNotes('');
+      setDisputePreventedInput(5300000);
+
+      try {
+        await jagaKodeApi.resetDemoAudit(apiKey);
+      } catch {
+        // Fallback jika API sedang tidak terhubung
+      }
+
+      let sampleRes: ClaimEvaluationResponse[] = [];
+      try {
+        sampleRes = await jagaKodeApi.getSampleClaims(50, 'ALL', apiKey);
+      } catch {
+        // Abaikan error jaringan
+      }
+
+      if (sampleRes && sampleRes.length > 0) {
+        setClaimsQueue(sampleRes);
+        setSelectedClaimId(sampleRes[0].claim_id);
+      } else {
+        const fb = buildFallbackEvaluatedClaims();
+        setClaimsQueue(fb);
+        setSelectedClaimId(fb[0].claim_id);
+      }
+
+      setStatusBanner({
+        type: 'success',
+        text: 'Sesi demo berhasil di-refresh ke kondisi awal. Antrean klaim dan formulir simulasi siap untuk pengujian baru.',
+      });
+    } catch (err) {
+      console.error('Gagal reset sesi demo:', err);
+      setStatusBanner({
+        type: 'error',
+        text: `Gagal me-refresh sesi demo: ${err instanceof Error ? err.message : 'Kesalahan internal'}`,
+      });
+    } finally {
+      setLoadingInitial(false);
+    }
+  };
+
   // Submit Verifier Audit Decision (POST /api/v1/audit/action)
   const handleSubmitAuditDecision = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1273,6 +1335,18 @@ export default function App() {
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loadingInitial ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Sinkronisasi</span>
+            </button>
+
+            {/* Reset Demo Session Button */}
+            <button
+              type="button"
+              onClick={handleResetDemoSession}
+              disabled={loadingInitial}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-500/20 dark:border-amber-400/30 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/50 cursor-pointer disabled:opacity-50"
+              title="Mulai ulang seluruh sesi simulasi demo ke kondisi awal (Reset Antrean, Filter, & Jejak Audit)"
+            >
+              <RotateCcw className={`h-3.5 w-3.5 ${loadingInitial ? 'animate-spin' : ''}`} />
+              <span>Refresh Sesi Demo</span>
             </button>
 
             {/* OPSI C: Dual Theme Toggle Button (Clean Clinical Light <-> Command-Center Dark) */}
@@ -2075,32 +2149,46 @@ export default function App() {
                     </div>
 
                     {/* Dual-Guardrail Score Pills */}
-                    <div className="flex items-center gap-2.5">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center dark:border-slate-800 dark:bg-slate-900">
-                        <div className="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400">
-                          Rule Score (55%)
-                        </div>
-                        <div className="font-mono text-sm font-extrabold text-slate-800 dark:text-slate-100">
-                          {selectedClaim.rule_risk_score.toFixed(1)}
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center dark:border-slate-800 dark:bg-slate-900">
-                        <div className="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400">
-                          ML Anomaly (45%)
-                        </div>
-                        <div className="font-mono text-sm font-extrabold text-slate-800 dark:text-slate-100">
-                          {selectedClaim.ml_anomaly_score.toFixed(1)}
-                        </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <div
+                        className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 cursor-help"
+                        title="Formula Dual Risk Fusion: CPS = 0.55 × S_rule + 0.45 × S_anomaly (Disertai Hard-Fail Override untuk anomali ekstrim)"
+                      >
+                        Dual Risk Fusion:{' '}
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
+                          CPS = 0.55 × S_rule + 0.45 × S_anomaly
+                        </span>
                       </div>
                       <div
-                        className="rounded-xl px-3.5 py-2 text-center text-white shadow-xs"
-                        style={{ backgroundColor: selectedClaim.badge_color }}
+                        className="flex items-center gap-2.5"
+                        title="Dual Risk Fusion: Composite Priority Score (CPS) = 0.55 × S_rule + 0.45 × S_anomaly (Disertai Hard-Fail Override untuk anomali ekstrim)"
                       >
-                        <div className="text-[10px] font-bold uppercase opacity-90">
-                          Composite CPS
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center dark:border-slate-800 dark:bg-slate-900">
+                          <div className="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400">
+                            Rule Score (55%)
+                          </div>
+                          <div className="font-mono text-sm font-extrabold text-slate-800 dark:text-slate-100">
+                            {selectedClaim.rule_risk_score.toFixed(1)}
+                          </div>
                         </div>
-                        <div className="font-mono text-base font-extrabold">
-                          {selectedClaim.risk_index.toFixed(1)}
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center dark:border-slate-800 dark:bg-slate-900">
+                          <div className="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400">
+                            ML Anomaly (45%)
+                          </div>
+                          <div className="font-mono text-sm font-extrabold text-slate-800 dark:text-slate-100">
+                            {selectedClaim.ml_anomaly_score.toFixed(1)}
+                          </div>
+                        </div>
+                        <div
+                          className="rounded-xl px-3.5 py-2 text-center text-white shadow-xs"
+                          style={{ backgroundColor: selectedClaim.badge_color }}
+                        >
+                          <div className="text-[10px] font-bold uppercase opacity-90">
+                            Composite CPS
+                          </div>
+                          <div className="font-mono text-base font-extrabold">
+                            {selectedClaim.risk_index.toFixed(1)}
+                          </div>
                         </div>
                       </div>
                     </div>

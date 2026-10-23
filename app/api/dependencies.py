@@ -279,6 +279,10 @@ class JagaKodeService:
         """Membaca rekaman jejak audit terbaru."""
         return self.auditor.read_recent_audits(limit=limit)
 
+    def reset_audits(self) -> None:
+        """Mereset catatan jejak audit untuk keperluan simulasi sesi demo baru."""
+        self.auditor.reset_audit_trail()
+
     def get_peer_group_stats(self, peer_group_id: Optional[str] = None, cmg: Optional[int] = None) -> Dict[str, Any]:
         """Mengambil statistik agregat distribusi biaya dan LoS kelompok sejenis (Peer Group)."""
         if not self.profiler:

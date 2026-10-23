@@ -294,20 +294,27 @@ Bagian bawah panel inspeksi memfasilitasi pengambilan keputusan resmi oleh verif
 Bagian ini membahas dasar matematis dan algoritma di balik JAGA-KODE untuk membantu Anda memahami secara mendalam cara kerja model.
 
 ### 5.1 Formula Penyatuan Risiko (*Dual Risk Fusion*)
-Skor Risiko Komposit ($S_{\text{composite}}$) dihitung dengan menggabungkan dua pilar utama: aturan klinis deterministik dan model statistik stokastik:
+Skor Prioritas Komposit atau Composite Priority Score (CPS / Risk Index 0–100) dihitung melalui arsitektur penyatuan risiko ganda (*Dual Risk Fusion*) yang memadukan kepatuhan aturan klinis deterministik dengan deteksi anomali statistik stokastik:
 
-$$S_{\text{composite}} = w_{\text{rule}} \cdot S_{\text{clinical}} + w_{\text{ml}} \cdot S_{\text{anomaly}} + w_{\text{peer}} \cdot S_{\text{peer}} + w_{\text{freq}} \cdot S_{\text{freq}}$$
+$$\text{Composite Priority Score (CPS)} = 0.55 \times S_{\text{rule}} + 0.45 \times S_{\text{anomaly}}$$
 
-Dengan bobot terkalibrasi (*Calibrated Hyperparameters*):
-- $w_{\text{rule}} = 0.40$ (Bobot Penalti Aturan Konsistensi Klinis Permenkes 26/2021)
-- $w_{\text{ml}} = 0.35$ (Bobot Anomali Multivariat Isolation Forest)
-- $w_{\text{peer}} = 0.15$ (Bobot Deviasi Rasio Biaya terhadap Peer Group)
-- $w_{\text{freq}} = 0.10$ (Bobot Ketidakwajaran Ko-kejadian Diagnosa Sekunder)
+Dengan rincian parameter terkalibrasi (*Calibrated Hyperparameters*):
+- **$S_{\text{rule}}$ (Bobot 55% / 0.55)**: Skor Pelanggaran Konsistensi Klinis (*Consistency Guardrail*). Menilai kepatuhan deterministik terhadap pedoman koding Kemenkes (Permenkes No. 26/2021), unbundling Special CMG, lonjakan tingkat keparahan (*Severity Jump*), komorbiditas semu (*Ghost Comorbidity*), serta konflik diagnosis-prosedur mutlak.
+- **$S_{\text{anomaly}}$ (Bobot 45% / 0.45)**: Skor Anomali Multivariat (*Peer-Group Isolation Forest*). Menilai derajat kejanggalan statistik klaim multidimensi (deviasi biaya tagih $FKL47$ terhadap median peer group, durasi rawat inap $LoS$ Z-score, serta intensitas komorbiditas) relatif terhadap kelompok faskes sebaya yang sejenis.
 
-#### Aturan Pemutus Keras (*Hard Override Rule*):
-Jika sebuah klaim melanggar **aturan klinis fatal** (misalnya: tindakan operasi mata katarak diklaim bersama pemasangan ventilator mekanik invasif, atau tindakan melahirkan pada pasien laki-laki), sistem menerapkan aturan pemutus:
-$$\text{Jika } S_{\text{clinical}} \ge 80.0 \implies S_{\text{composite}} = \max(S_{\text{composite}}, 85.0)$$
-Hal ini menjamin bahwa kecurangan klinis yang nyata tidak akan pernah tersembunyi di balik angka statistik biaya yang normal.
+#### Logika Pemutus Keras (*Hard-Fail Override* untuk Anomali Ekstrim):
+Untuk menjamin bahwa kecurangan klinis fatal atau deviasi ekstrem tidak dapat "tersamar" atau tereduksi oleh rata-rata statistik yang normal, sistem menerapkan aturan pemutus keras:
+$$\text{Jika } S_{\text{rule}} \ge 70.0 \quad \text{atau} \quad \text{hard\_fail\_flag} = 1 \implies \text{CPS} = \max(\text{CPS}, 75.0)$$
+
+**Mekanisme Kerja Hard-Fail Override:**
+1. **Pelanggaran Regulasi Berat / Fatal**: Jika klaim memicu pelanggaran klinis berkategori kritis (misalnya indikasi manipulasi komorbiditas mayor pada klaim rawat 1 hari, atau tindakan medis mayor tanpa diagnosis penunjang), klaim langsung dinaikkan ke ambang minimal $75.0$ (*High Risk*).
+2. **Anomali Ekstrim / Outlier Radikal**: Jika terdeteksi anomali multivariat ekstrim pada kelompok pembanding (biaya melonjak tajam atau hari rawat melebihi $> 3$ standar deviasi peer group), sistem mengaktifkan override sehingga klaim wajib masuk ke antrean verifikator manusia (*Human-in-the-Loop*).
+3. **Jaminan Anti-Fraud**: Tidak ada kasus kecurangan klinis atau anomali berat yang bisa lolos ke jalur *Fast-Track* akibat normalisasi agregat.
+
+#### Klasifikasi Tingkat Urgensi Triage (*Triage Tiers*):
+- 🔴 **HIGH RISK ($\text{CPS} \ge 65.0$)**: Prioritas Audit Klinis Utama. Klaim ditunda sementara; verifikator wajib meminta resume medis dan bukti penunjang ke faskes.
+- 🟡 **MEDIUM RISK ($35.0 \le \text{CPS} < 65.0$)**: Verifikasi Terarah (*Targeted Review*). Verifikator memeriksa kesesuaian diagnosis sekunder atau keabsahan top-up tarif Special CMG.
+- 🟢 **LOW RISK / FAST-TRACK ($\text{CPS} < 35.0$)**: Klaim Konsisten & Wajar. Disetujui secara otomatis melalui sistem persetujuan instan (*Zero-Dispute Fast Track*).
 
 ---
 

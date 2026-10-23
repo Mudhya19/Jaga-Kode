@@ -108,15 +108,15 @@ Komponen ini bertugas mendeteksi pola anomali yang lolos dari saringan aturan st
 
 *Risk Fusion* menggabungkan sinyal deterministik dari *Rule Engine* dan sinyal statistik dari *Anomaly Engine* menjadi satu nilai tunggal yang terkalibrasi: **Composite Priority Score ($CPS$)**:
 
-$$CPS = \alpha \cdot S_{rule} + (1 - \alpha) \cdot S_{anomaly}$$
+$$\text{Composite Priority Score (CPS)} = 0.55 \times S_{\text{rule}} + 0.45 \times S_{\text{anomaly}}$$
 
-* Parameter kalibrasi $\alpha \in [0.4, 0.6]$ (default $\alpha = 0.5$) memberikan keseimbangan seimbang antara pelanggaran aturan pasti dan kejanggalan statistik.
-* **Logika Override (*Hard Fail*)**: Apabila ditemukan pelanggaran aturan berkategori *Kritis* ($S_{rule} = 1.0$, misal prosedur bedah mayor tanpa catatan diagnosis yang valid), klaim langsung ditetapkan sebagai prioritas **Tinggi** terlepas dari nilai anomali.
+* **Parameter Kalibrasi**: Bobot $0.55$ untuk aturan klinis deterministik (*Consistency Guardrail*) dan $0.45$ untuk anomali multivariat (*Peer-Group Isolation Forest*).
+* **Logika Override (*Hard Fail*)**: Apabila ditemukan pelanggaran aturan berkategori *Kritis* ($S_{\text{rule}} \ge 70.0$ atau $\text{hard\_fail\_flag} = 1$, misal prosedur bedah mayor tanpa catatan diagnosis yang valid atau komorbiditas palsu pada rawat 1 hari), skor langsung dinaikkan ke ambang minimal $CPS = \max(CPS, 75.0)$ terlepas dari nilai statistik normal. Hal ini menjamin anomali ekstrim tidak akan terselubung.
 
 ### Klasifikasi Antrean Prioritas (*Priority Tiers*):
-* **🔴 PRIORITAS TINGGI ($CPS \ge 0.70$)**: Masuk antrean teratas verifikator; terindikasi anomali klinis berat atau kombinasi pelanggaran aturan dan deviasi statistik tajam.
-* **🟡 PRIORITAS SEDANG ($0.40 \le CPS < 0.70$)**: Memerlukan pemeriksaan selektif pada atribut spesifik yang disorot oleh kartu penjelasan.
-* **🟢 PRIORITAS RENDAH ($CPS < 0.40$)**: Klaim berisiko minimal, konsisten secara klinis dan statistik, dapat diproses dengan jalur cepat (*fast-track review*).
+* **🔴 PRIORITAS TINGGI ($CPS \ge 65.0$)**: Masuk antrean teratas verifikator; terindikasi anomali klinis berat atau kombinasi pelanggaran aturan dan deviasi statistik tajam.
+* **🟡 PRIORITAS SEDANG ($35.0 \le CPS < 65.0$)**: Memerlukan pemeriksaan selektif pada atribut spesifik yang disorot oleh kartu penjelasan.
+* **🟢 PRIORITAS RENDAH ($CPS < 35.0$)**: Klaim berisiko minimal, konsisten secara klinis dan statistik, dapat diproses dengan jalur cepat (*fast-track review*).
 
 ---
 
