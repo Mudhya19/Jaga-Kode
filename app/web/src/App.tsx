@@ -828,6 +828,7 @@ export default function App() {
                   className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-[#111827] sm:p-5"
                 >
                   <HumanInTheLoopAudit
+                    claim={selectedClaim}
                     selectedDecision={selectedDecision}
                     setSelectedDecision={setSelectedDecision}
                     verifierId={verifierId}

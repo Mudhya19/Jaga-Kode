@@ -1,4 +1,4 @@
-# 07. Peta Jalan dan Manajemen Proyek
+﻿# 07. Peta Jalan dan Manajemen Proyek
 
 ## 1. Peta Jalan Eksekusi 6 Fase (*6-Phase Execution Roadmap*)
 
@@ -6,36 +6,36 @@ Pengembangan JAGA-KODE dirancang secara terstruktur dan modular dalam 6 fase eks
 
 ```
 [FASE 1: Finalisasi Kebutuhan]
-  • Pemetaan user flow verifikator BPJS
-  • Spesifikasi fitur utama & perumusan backlog sistem
-         │
-         ▼
+  â€¢ Pemetaan user flow verifikator BPJS
+  â€¢ Spesifikasi fitur utama & perumusan backlog sistem
+         â”‚
+         â–¼
 [FASE 2: Persiapan Data & Skema]
-  • Pembuatan data dictionary skema klaim tabular
-  • Skenario pengujian & pipeline awal data dummy/sintetis
-         │
-         ▼
+  â€¢ Pembuatan data dictionary skema klaim tabular
+  â€¢ Skenario pengujian & pipeline awal data dummy/sintetis
+         â”‚
+         â–¼
 [FASE 3: Pengembangan Analitik & AI]
-  • Pembangunan Consistency Guardrail (Rule Engine)
-  • Pelatihan Anomaly Engine (Isolation Forest & Peer Grouping)
-  • Perhitungan Risk Fusion & logika Explainable AI
-         │
-         ▼
+  â€¢ Pembangunan Consistency Guardrail (Rule Engine)
+  â€¢ Pelatihan Anomaly Engine (Isolation Forest & Peer Grouping)
+  â€¢ Perhitungan Risk Fusion & logika Explainable AI
+         â”‚
+         â–¼
 [FASE 4: Pengembangan Web & Antarmuka]
-  • Desain & coding antarmuka dashboard responsif
-  • Integrasi REST API backend & visualisasi XAI radar
-  • Workspace antrean prioritas ulasan klaim
-         │
-         ▼
+  â€¢ Desain & coding antarmuka dashboard responsif
+  â€¢ Integrasi REST API backend & visualisasi XAI radar
+  â€¢ Workspace antrean prioritas ulasan klaim
+         â”‚
+         â–¼
 [FASE 5: Integrasi & Pengujian Internal]
-  • Uji coba end-to-end secara internal pada dataset uji
-  • Produksi tangkapan layar (screenshot) & video demonstrasi
-  • Pengukuran metrik operasional awal (Precision@K, Review Yield)
-         │
-         ▼
+  â€¢ Uji coba end-to-end secara internal pada dataset uji
+  â€¢ Produksi tangkapan layar (screenshot) & video demonstrasi
+  â€¢ Pengukuran metrik operasional awal (Precision@K, Review Yield)
+         â”‚
+         â–¼
 [FASE 6: Penyempurnaan & Peta Pilot]
-  • Evaluasi fungsionalitas berdasarkan masukan penguji
-  • Persiapan dokumen arsitektur untuk potensi program percontohan (pilot)
+  â€¢ Evaluasi fungsionalitas berdasarkan masukan penguji
+  â€¢ Persiapan dokumen arsitektur untuk potensi program percontohan (pilot)
     menggunakan data berizin resmi di ekosistem JKN
 ```
 
@@ -46,24 +46,24 @@ Pengembangan JAGA-KODE dirancang secara terstruktur dan modular dalam 6 fase eks
 Tim SI DANDANG terdiri atas tiga talenta dengan kompetensi yang saling melengkapi (*cross-functional complementary skills*):
 
 ```
-┌─────────────────────────────────┬─────────────────────────────────┬─────────────────────────────────┐
-│       MUHAMMAD DHIAUDDIN        │      MUHAMMAD ALISYAHBANA       │      MUHAMMAD ALI MAULANA       │
-│   Ketua Tim - Data Scientist    │     Anggota - Web Developer     │     Anggota - System Analyst    │
-├─────────────────────────────────┼─────────────────────────────────┼─────────────────────────────────┤
-│ • Pipeline data & rekayasa fitur│ • Arsitektur backend & REST API │ • Analisis kebutuhan bisnis     │
-│ • Model Isolation Forest        │ • Antarmuka web responsif       │ • Pemetaan SOP verifikator BPJS │
-│ • Logika Explainable AI (XAI)   │ • Visualisasi radar XAI         │ • Desain alur Human-in-the-Loop │
-│ • Evaluasi metrik Precision@K   │ • Integrasi model analitik      │ • Dokumentasi teknis & kepatuhan│
-├─────────────────────────────────┼─────────────────────────────────┼─────────────────────────────────┤
-│ Kontak:                         │ Kontak:                         │ Kontak:                         │
-│ muhammamddhiauddin40@gmail.com  │ malisyahbana5@gmail.com         │ alimaulana0208@gmail.com        │
-│ 085652203518                    │ 085346184066                    │ 087811201379                    │
-└─────────────────────────────────┴─────────────────────────────────┴─────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚       MUHAMMAD DHIAUDDIN        â”‚      MUHAMMAD ALI SYAHBANA       â”‚      MUHAMMAD ALI MAULANA       â”‚
+â”‚   Ketua Tim - Data Scientist    â”‚     Anggota - Web Developer     â”‚     Anggota - System Analyst    â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ â€¢ Pipeline data & rekayasa fiturâ”‚ â€¢ Arsitektur backend & REST API â”‚ â€¢ Analisis kebutuhan bisnis     â”‚
+â”‚ â€¢ Model Isolation Forest        â”‚ â€¢ Antarmuka web responsif       â”‚ â€¢ Pemetaan SOP verifikator BPJS â”‚
+â”‚ â€¢ Logika Explainable AI (XAI)   â”‚ â€¢ Visualisasi radar XAI         â”‚ â€¢ Desain alur Human-in-the-Loop â”‚
+â”‚ â€¢ Evaluasi metrik Precision@K   â”‚ â€¢ Integrasi model analitik      â”‚ â€¢ Dokumentasi teknis & kepatuhanâ”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Kontak:                         â”‚ Kontak:                         â”‚ Kontak:                         â”‚
+â”‚ muhammamddhiauddin40@gmail.com  â”‚ malisyahbana5@gmail.com         â”‚ alimaulana0208@gmail.com        â”‚
+â”‚ 085652203518                    â”‚ 085346184066                    â”‚ 087811201379                    â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ### Matriks Tanggung Jawab Tim (RACI Matrix)
 
-| Modul / Komponen Proyek | M. Dhiauddin (DS) | M. Alisyahbana (Dev) | M. Ali Maulana (SA) |
+| Modul / Komponen Proyek | M. Dhiauddin (DS) | M. Ali Syahbana (Dev) | M. Ali Maulana (SA) |
 |---|---|---|---|
 | Perumusan Masalah & Alur Verifikasi | Consulted | Informed | **Accountable / Responsible** |
 | Spesifikasi Skema Data & Kasus Uji | **Responsible** | Consulted | Accountable |
@@ -113,3 +113,4 @@ Dokumentasi ini mengacu pada landasan hukum dan sumber daya resmi berikut:
    [https://peraturan.bpk.go.id/Details/122606/permenkes-no-16-tahun-2019](https://peraturan.bpk.go.id/Details/122606/permenkes-no-16-tahun-2019)
 4. **Peraturan Menteri Kesehatan Republik Indonesia Nomor 26 Tahun 2021 tentang Pedoman Indonesian Case Base Groups (INA-CBG) dalam Penyelenggaraan Program Jaminan Kesehatan**:  
    [https://peraturan.bpk.go.id/Details/180223/permenkes-no-26-tahun-2021](https://peraturan.bpk.go.id/Details/180223/permenkes-no-26-tahun-2021)
+

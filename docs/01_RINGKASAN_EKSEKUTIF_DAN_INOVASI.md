@@ -1,4 +1,4 @@
-# 01. Ringkasan Eksekutif dan Inovasi JAGA-KODE
+﻿# 01. Ringkasan Eksekutif dan Inovasi JAGA-KODE
 
 ## 1. Identitas Proyek & Posisioning
 
@@ -7,7 +7,7 @@
 * **Kategori Kompetisi:** Efisiensi Risiko pada Fasilitas Kesehatan
 * **Subkategori:** Manipulasi Diagnosis dan/atau Tindakan (*Upcoding*)
 * **Tema Penyelenggara:** *Detect Smarter, Protect JKN - Smarter Protection for a Stronger JKN*
-* **Pengusul:** Tim SI DANDANG (Muhammad Dhiauddin, Muhammad Alisyahbana, Muhammad Ali Maulana)
+* **Pengusul:** Tim SI DANDANG (Muhammad Dhiauddin, Muhammad Ali Syahbana, Muhammad Ali Maulana)
 
 ### Pernyataan Posisioning (*Positioning Statement*)
 > **JAGA-KODE bukan instrumen pemutus fraud otonom.** JAGA-KODE hadir sebagai sistem pendukung keputusan (*Decision Support System*) berbasis kecerdasan buatan (*AI Guardrail*) yang membantu verifikator klaim BPJS Kesehatan memilah, memprioritaskan, dan memahami anomali klaim berindikasi *upcoding* secara transparan, berbasis bukti, dan dapat diaudit.
@@ -30,7 +30,7 @@
 Teks di bawah ini telah disesuaikan secara presisi dengan format isian formulir web registrasi Healthkathon BPJS Kesehatan dengan gaya bahasa alami (*humanized*):
 
 ### Kolom 1: Latar Belakang (Wajib)
-> Setiap harinya, verifikator BPJS Kesehatan harus meneliti ribuan berkas klaim Jaminan Kesehatan Nasional (JKN). Di tengah masifnya volume transaksi ini, salah satu risiko besar yang membayangi fasilitas kesehatan adalah upcoding—yaitu praktik penyesuaian diagnosis atau tindakan medis agar nilai klaim menjadi lebih tinggi dari kondisi sebenarnya.  
+> Setiap harinya, verifikator BPJS Kesehatan harus meneliti ribuan berkas klaim Jaminan Kesehatan Nasional (JKN). Di tengah masifnya volume transaksi ini, salah satu risiko besar yang membayangi fasilitas kesehatan adalah upcodingâ€”yaitu praktik penyesuaian diagnosis atau tindakan medis agar nilai klaim menjadi lebih tinggi dari kondisi sebenarnya.  
 > Dari sudut pandang kelengkapan berkas, klaim upcoding kerap terlihat sempurna. Namun bila dibedah secara klinis, sering ada kejanggalan antara kode diagnosis, jenis tindakan, lama rawat (*Length of Stay*), hingga tingkat keparahan pasien. Mengandalkan verifikasi manual sepenuhnya tentu menguras waktu dan rentan meluputkan pola-pola anomali baru.  
 > Untuk itu, kami menghadirkan JAGA-KODE sebagai sistem pendukung (*decision support system*) berbasis AI. JAGA-KODE tidak bermaksud mengambil alih peran manusia atau memutus klaim secara sepihak. Sistem ini hadir bekerja berdampingan dengan verifikator (*Human-in-the-Loop*) untuk memilah dan menyoroti klaim berisiko tinggi secara transparan, demi menjaga akuntabilitas dan keberlanjutan dana JKN.
 
@@ -64,3 +64,4 @@ Untuk menjaga integritas ilmiah, kepatuhan hukum, dan etika implementasi AI di s
 2. **Tidak Menolak Klaim Secara Otomatis**: Tidak ada *automated claim rejection*. Hak tolak atau tunda bayar murni berada pada kewenangan verifikator BPJS Kesehatan.
 3. **Bukan Pengganti Verifikator / Auditor**: Solusi bertindak sebagai *augmenting tool*, bukan *automating replacement*.
 4. **Tanpa Penggunaan Data Peserta JKN Riil**: Prototipe murni diuji dengan data tabular tiruan (*synthetic dummy data*), menjamin *zero data breach risk* selama kompetisi.
+

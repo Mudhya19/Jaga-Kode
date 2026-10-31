@@ -121,7 +121,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="Mulai ulang seluruh sesi simulasi demo ke kondisi awal (Reset Antrean, Filter, & Jejak Audit)"
           >
             <RotateCcw className={`h-3.5 w-3.5 ${loadingInitial ? 'animate-spin' : ''}`} />
-            <span>Refresh Sesi Demo</span>
+            <span>Refresh Demo</span>
           </button>
 
           {/* OPSI C: Dual Theme Toggle Button (Clean Clinical Light <-> Command-Center Dark) */}

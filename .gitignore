@@ -109,3 +109,27 @@ htmlcov/
 node_modules/
 .vite/
 *.tsbuildinfo
+
+# ==============================================================================
+# Dokumen Panduan & Materi Internal Panitia BPJS (Disembunyikan dari Repo Publik)
+# ==============================================================================
+images/export/*
+!images/export/.gitkeep
+
+docs/BPJS Healthkaton 2026 - Basic.pdf
+docs/Healthkathon 2026 - Alur Kegiatan Healthkathon.pdf
+docs/Materi HealthKathon 2026.pdf
+docs/Materi_Data_Sample_BPJS_Kesehatan_Healthkaton2026.pdf
+docs/Template Project Final Healthkathon 2026.pdf
+docs/Building_Practical_Al_Inference_Pipeline_From_Data_to_API_Said_Achmad.pdf
+docs/*.docx
+docs/DOKUMENTASI_PRESENTASI_FINAL_HEALTHKATHON_2026.md
+
+# ==============================================================================
+# Internal Presentation Scripts, HTML Deck & Report Generator
+# ==============================================================================
+reports/presentasi/
+scripts/generate_final_report_html.py
+reports/figures/preview_cover_updated.png
+images/output/app_screenshot_*.png
+

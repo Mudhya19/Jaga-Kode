@@ -85,7 +85,7 @@ Jaga-Kode/
 | Nama | Peran | Fokus Utama Kontribusi |
 |---|---|---|
 | **Muhammad Dhiauddin** | Ketua Tim - *Data Scientist* | Pipeline data, rekayasa fitur klinis, model *Isolation Forest*, logika *Explainable AI*, dan evaluasi *Precision@K*. |
-| **Muhammad Alisyahbana** | Anggota - *Web Developer* | Backend REST API, antarmuka *Verification Workspace*, visualisasi radar XAI, dan integrasi sistem. |
+| **Muhammad Ali Syahbana** | Anggota - *Web Developer* | Backend REST API, antarmuka *Verification Workspace*, visualisasi radar XAI, dan integrasi sistem. |
 | **Muhammad Ali Maulana** | Anggota - *System Analyst* | Pemetaan alur *Human-in-the-Loop*, analisis kebutuhan BPJS, kepatuhan SOP verifikator, dan dokumentasi sistem. |
 
 ---
