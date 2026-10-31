@@ -767,10 +767,12 @@ def test_copilot_ask_endpoint_with_header_and_radar():
         },
         "prompt": "Bagaimana rekomendasi audit untuk indikasi unbundling ini?",
     }
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    headers = {"X-Gemini-API-Key": api_key} if api_key else {}
     resp = client.post(
         "/api/v1/copilot/ask",
         json=ask_payload,
-        headers={"X-Gemini-API-Key": os.getenv("GEMINI_API_KEY", "dummy-gemini-test-key")},
+        headers=headers,
     )
     assert resp.status_code == 200
     data = resp.json()
