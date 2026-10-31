@@ -1,7 +1,6 @@
 """
 Automated Test Suite for JAGA-KODE REST API Endpoints
 """
-import os
 import pytest
 from starlette.testclient import TestClient
 from app.api.main import app
@@ -767,12 +766,10 @@ def test_copilot_ask_endpoint_with_header_and_radar():
         },
         "prompt": "Bagaimana rekomendasi audit untuk indikasi unbundling ini?",
     }
-    api_key = os.getenv("GEMINI_API_KEY", "")
-    headers = {"X-Gemini-API-Key": api_key} if api_key else {}
     resp = client.post(
         "/api/v1/copilot/ask",
         json=ask_payload,
-        headers=headers,
+        headers={"X-Gemini-API-Key": "dummy-gemini-test-key"},
     )
     assert resp.status_code == 200
     data = resp.json()

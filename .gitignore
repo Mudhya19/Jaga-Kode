@@ -32,10 +32,11 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Environment & Secrets Protection (UU PDP & API Key Security)
+# Environment & Secrets (UU PDP & Cloud API Security)
 .env
 .env.*
 !.env.example
+*.env
 *.key
 *.pem
 secrets/
