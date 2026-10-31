@@ -5,9 +5,11 @@ Menghubungkan layanan REST API JAGA-KODE dengan Google Gemini LLM (Free Tier)
 melalui modul Asisten Klinis `src/xai/gemini_copilot.py`.
 Mendukung Zero-PII, header X-Gemini-API-Key, serta fallback deterministik lokal.
 """
+import os
 import logging
 from typing import Optional
 from datetime import datetime
+from dotenv import load_dotenv
 from fastapi import APIRouter, Header, HTTPException
 
 from app.api.schemas.copilot_schema import (
@@ -23,12 +25,17 @@ logger = logging.getLogger("jaga_kode.api.copilot")
 
 router = APIRouter(prefix="/copilot", tags=["AI Clinical Copilot & Dispute Generator"])
 
-# Inisialisasi instance singleton copilot
-_copilot_instance = GeminiClinicalCopilot()
+# Instance singleton copilot
+_copilot_instance: Optional[GeminiClinicalCopilot] = None
 
 
 def get_copilot() -> GeminiClinicalCopilot:
-    """Mengembalikan instance GeminiClinicalCopilot."""
+    """Mengembalikan instance GeminiClinicalCopilot, memastikan API key selalu sinkron dengan file .env."""
+    global _copilot_instance
+    load_dotenv(override=False)
+    current_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+    if _copilot_instance is None or _copilot_instance.api_key != current_key:
+        _copilot_instance = GeminiClinicalCopilot(api_key=current_key)
     return _copilot_instance
 
 
