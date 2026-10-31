@@ -32,16 +32,18 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Environment & Secrets (UU PDP & Cloud API Security)
+# Virtual Environments & Secrets Protection
 .env
 .env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 !.env.example
-*.env
 *.key
 *.pem
-secrets/
-
-# Virtual Environments
+credentials.json
+client_secret*.json
 .venv
 env/
 venv/
